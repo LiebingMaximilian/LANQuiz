@@ -43,7 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-pubspec.lock
+android/app/src/main/java/io/flutter/plugins/
+ios/Runner/GeneratedPluginRegistrant.*
 macos/Flutter/GeneratedPluginRegistrant.swift
-windows/flutter/generated_plugin_registrant.cc
-windows/flutter/generated_plugins.cmake
+windows/flutter/generated_plugin*
