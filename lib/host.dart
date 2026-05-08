@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
 
 Future<String?> getLocalIpAddress() async {
   try {
@@ -17,8 +18,8 @@ Future<String?> getLocalIpAddress() async {
   }
   return null;
 }
-
 // Returns the broadcast object so the caller can keep it alive
+
 Future<BonsoirBroadcast> startBroadcast() async {
   BonsoirService service = BonsoirService(
     name: "LANQuiz-Lobby",
@@ -31,24 +32,38 @@ Future<BonsoirBroadcast> startBroadcast() async {
   print("Game is now visible in the network.");
   return broadcast; // ← caller must store this
 }
-
-List<WebSocket> _connectedClients = [];
+// save WebSocketChannel
+List<WebSocketChannel> _connectedChannels = [];
 
 void startSocketServer({required Function(String) onMessageReceived}) async {
-  var server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-  print("Server running...");
-  server.transform(WebSocketTransformer()).listen((WebSocket clientSocket) {
-    _connectedClients.add(clientSocket);
-    clientSocket.listen((data) {
-      onMessageReceived(data.toString());
-    }, onDone: () {
-      _connectedClients.remove(clientSocket);
-    });
+  var handler = webSocketHandler((WebSocketChannel webSocket) {
+
+    _connectedChannels.add(webSocket);
+    print("Player is connected!");
+
+    webSocket.stream.listen(
+            (message) {
+          onMessageReceived(message.toString());
+        },
+        onDone: () {
+          _connectedChannels.remove(webSocket);
+          print("Player disconnected.");
+        },
+        onError: (error) {
+          _connectedChannels.remove(webSocket);
+          print("Error at Player: $error");
+        }
+    );
   });
+
+  // start Server on Port 8080
+  var server = await shelf_io.serve(handler, InternetAddress.anyIPv4, 8080);
+  print('Server läuft auf ws://${server.address.address}:${server.port}');
 }
 
+// Send with sink.add
 void broadcastToAll(String jsonMessage) {
-  for (var player in _connectedClients) {
-    player.add(jsonMessage);
+  for (var channel in _connectedChannels) {
+    channel.sink.add(jsonMessage);
   }
 }

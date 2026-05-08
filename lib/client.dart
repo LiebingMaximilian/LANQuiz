@@ -1,7 +1,9 @@
 import 'package:web_socket_channel/io.dart';
 
 IOWebSocketChannel createChannel(String ip) {
-  return IOWebSocketChannel.connect('ws://$ip:8080');
+  const String url = "ws://10.0.2.2:8080";
+  print("client connects to: $url");
+  return IOWebSocketChannel.connect(Uri.parse(url));
 }
 
 void sendAnswer(IOWebSocketChannel channel, int index) {

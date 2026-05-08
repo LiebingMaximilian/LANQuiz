@@ -5,21 +5,21 @@
       "name": "LANQuiz (Host)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "yxq8dmfe8dgesogm",//change to your device, find with "flutter devices"
+      "deviceId": "emulator5554",//change to your device, find with "flutter devices"
       "args": ["--dart-define=MODE=HOST"] // this sets an env variable so we dont have to select manually all the time
     },
     {
       "name": "LANQuiz (Player1)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "R52NB0K7THB",
+      "deviceId": "emulator5556",
       "args": ["--dart-define=MODE=PLAYER"]
     },
     {
       "name": "LANQuiz (Player2)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "emulator-5554",
+      "deviceId": "emulator-5558",
       "args": ["--dart-define=MODE=PLAYER"]
     },
   ],
