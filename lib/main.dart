@@ -1,121 +1,300 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:bonsoir/bonsoir.dart';
+import 'game_state.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => GameState(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'LAN Quiz',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+enum Mode { none, host, join }
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController messageController = TextEditingController();
+  final TextEditingController ipController = TextEditingController(); // ← moved here
+  bool _isDiscovering = false;
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    ipController.dispose();
+    Provider.of<GameState>(context, listen: false).stopDiscovery();
+    super.dispose();
+  }
+
+  Future<void> _startDiscovery(GameState gameState) async {
+    print("DEBUG: _startDiscovery called");
+    setState(() => _isDiscovering = true);
+    await gameState.discoverGames();
+  }
+
+  void _stopDiscovery(GameState gameState) {
+    gameState.stopDiscovery();
+    setState(() => _isDiscovering = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final gameState = Provider.of<GameState>(context);
+
+    // ── 1. START SCREEN ──────────────────────────────────────────────────────
+    if (gameState.mode == Mode.none) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("LAN Quiz")),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            child: Column(
+              children: [
+                const Icon(Icons.wifi_tethering, size: 80, color: Colors.blue),
+                const SizedBox(height: 30),
+
+                // ── Host button ──────────────────────────────────────────────
+                ElevatedButton.icon(
+                  onPressed: () => gameState.hostGame(),
+                  icon: const Icon(Icons.dns),
+                  label: const Text("Host Game"),
+                  style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50)),
+                ),
+
+                const SizedBox(height: 40),
+                const Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text("OR JOIN A GAME",
+                        style:
+                            TextStyle(color: Colors.grey, letterSpacing: 1.2)),
+                  ),
+                  Expanded(child: Divider()),
+                ]),
+                const SizedBox(height: 20),
+
+                // ── Discover / Stop button ───────────────────────────────────
+                ElevatedButton.icon(
+                  onPressed: _isDiscovering
+                      ? () => _stopDiscovery(gameState)
+                      : () => _startDiscovery(gameState),
+                  icon: _isDiscovering
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.search),
+                  label: Text(
+                      _isDiscovering ? "Stop Searching" : "Find Games"),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor:
+                        _isDiscovering ? Colors.orange : Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Discovered games list ────────────────────────────────────
+                if (gameState.discoveredServices.isEmpty && _isDiscovering)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text("Looking for games on your network…",
+                        style: TextStyle(color: Colors.grey)),
+                  )
+                else if (gameState.discoveredServices.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Available Games",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      ...gameState.discoveredServices.map((service) {
+                        final resolved = service as ResolvedBonsoirService;
+                        final ip = resolved.host ?? "Unknown IP";
+                        final port = resolved.port;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            tileColor: Colors.blue.shade50,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            leading: const Icon(Icons.sports_esports,
+                                color: Colors.blue),
+                            title: Text(service.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text("$ip : $port",
+                                style: const TextStyle(
+                                    color: Colors.blueGrey)),
+                            trailing: const Icon(Icons.arrow_forward_ios,
+                                size: 16),
+                            onTap: () {
+                              _stopDiscovery(gameState);
+                              gameState.joinGame(ip);
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+
+                // ── Manual IP entry — always visible ─────────────────────────
+                const SizedBox(height: 24),
+                const Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text("OR ENTER IP MANUALLY",
+                        style: TextStyle(
+                            color: Colors.grey, letterSpacing: 1.2)),
+                  ),
+                  Expanded(child: Divider()),
+                ]),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: ipController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Host IP Address",
+                    hintText: "e.g. 192.168.1.50",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lan),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (ipController.text.isNotEmpty) {
+                      _stopDiscovery(gameState);
+                      gameState.joinGame(ipController.text);
+                    }
+                  },
+                  icon: const Icon(Icons.login),
+                  label: const Text("Join Game"),
+                  style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ── 2. LOBBY SCREEN ──────────────────────────────────────────────────────
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(gameState.mode == Mode.host
+            ? "Lobby (Hosting)"
+            : "Lobby (Joined)"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.exit_to_app),
+            onPressed: () {
+              // gameState.reset();
+            },
+          )
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Column(
+        children: [
+          if (gameState.mode == Mode.host)
+            Container(
+              color: Colors.blue.shade50,
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text("Your friends should connect to:"),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    gameState.localIp ?? "Finding IP...",
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(10),
+              itemCount: gameState.messages.length,
+              itemBuilder: (context, index) => Card(
+                child: ListTile(title: Text(gameState.messages[index])),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: messageController,
+                      decoration: const InputDecoration(
+                        hintText: "Type a message...",
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onSubmitted: (_) {
+                        if (messageController.text.isNotEmpty) {
+                          gameState.send(messageController.text);
+                          messageController.clear();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FloatingActionButton(
+                    mini: true,
+                    onPressed: () {
+                      if (messageController.text.isNotEmpty) {
+                        gameState.send(messageController.text);
+                        messageController.clear();
+                      }
+                    },
+                    child: const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
