@@ -5,14 +5,29 @@ import 'package:web_socket_channel/io.dart';
 import 'host.dart';
 import 'client.dart';
 import 'main.dart';
+import 'dart:convert';
 
 class GameState extends ChangeNotifier {
   // Connection State
   Mode mode = Mode.none;
   String? localIp;
   StreamSubscription? _streamSubscription;
-  List<String> messages = [];
   IOWebSocketChannel? channel;
+
+  // Game Logic State
+  bool isPlaying = false;
+  bool showLeaderboard = false;
+  int currentRound = 1;
+  int totalRounds = 10;
+  int answerTimeLimit = 20;
+  String currentQuestion = "";
+  List<String> currentAnswers = [];
+
+  // Scoring and Loop Logic
+  String myName = "Spieler ${DateTime.now().millisecond%1000}"; //randomname for now TODO player input own name
+  Map<String,dynamic> scores = {};
+  int _answersReceivedThisRound = 0;
+  int _correctAnswerIndex = 2; // for example question
 
   // Discovery State
   List<BonsoirService> discoveredServices = [];
@@ -25,11 +40,19 @@ class GameState extends ChangeNotifier {
     _broadcast = await startBroadcast();
     startSocketServer(
       onMessageReceived: (incomingText) {
-        messages.add("Player: $incomingText");
-        notifyListeners();
+        processNetworkMessage(incomingText);
       },
     );
+
     localIp = await getLocalIpAddress();
+
+    channel = createChannel('127.0.0.1');
+    _streamSubscription = channel!.stream.listen(
+        (msg){
+          processNetworkMessage(msg);
+        },
+      onError: (error) => print("Loopback Fehler: $error"),
+    );
     print("Hosting on ip: " + localIp!);
     mode = Mode.host;
     notifyListeners();
@@ -89,15 +112,15 @@ Future<void> discoverGames() async {
 
       _streamSubscription = channel!.stream.listen(
         (msg) {
-          messages.add("Host: $msg");
-          notifyListeners();
+          processNetworkMessage(msg);
+
         },
         onError: (error) {
-          messages.add("System: Connection Error — $error");
+          print("Error $error");
           notifyListeners();
         },
         onDone: () {
-          messages.add("System: Disconnected.");
+          print("Host disconnected");
           notifyListeners();
         },
         cancelOnError: true,
@@ -106,22 +129,21 @@ Future<void> discoverGames() async {
       mode = Mode.join;
       notifyListeners();
     } catch (e) {
-      messages.add("System: Failed to join — $e");
+      print("Error $e");
       notifyListeners();
     }
   }
 
-  // ── Send ────────────────────────────────────────────────────────────────────
+  // ── Communication ───────────────────────────────────────────────────────────
 
-  void send(String text) {
-    if (mode == Mode.host) {
-      broadcastToAll(text);
-      messages.add("Me (Host): $text");
-    } else {
-      channel?.sink.add(text);
-      messages.add("Me: $text");
+  void broadcastCommand(String jsonMessage){
+    if(mode == Mode.host){
+      broadcastToAll(jsonMessage);
     }
-    notifyListeners();
+  }
+
+  void sendToServer(String jsonMessage){
+    channel?.sink.add(jsonMessage);
   }
 
   // ── Dispose ─────────────────────────────────────────────────────────────────
@@ -133,5 +155,116 @@ Future<void> discoverGames() async {
     stopDiscovery();
     channel?.sink.close();
     super.dispose();
+  }
+
+  Map<String, dynamic> _getQuestionForRound(int round){
+    //TODO: open trivia api
+
+    if(round == 1){
+      return{
+        "question": "Was ist die Hauptstadt von Frankreich?",
+        "answers": ["Berlin", "Madrid", "Paris", "Rom"],
+        "correctIndex": 2 // Paris
+      };
+    }
+    else{
+      return{
+        "question": "Frage für Runde $round (Platzhalter)",
+        "answers": ["Antwort A", "Antwort B", "Antwort C", "Antwort D"],
+        "correctIndex": 0 // A
+      };
+    }
+  }
+
+  void startGame(int rounds, int timeLimit){
+    if (mode != Mode.host){
+      return;
+    }
+
+    totalRounds = rounds;
+    currentRound = 1;
+
+    final qData = _getQuestionForRound(currentRound);
+    _correctAnswerIndex = qData['correctIndex'];
+
+    final startGamePacket = {
+      "type" : "START_GAME",
+      "round" : currentRound,
+      "rounds" : totalRounds,
+      "timeLimit" : timeLimit,
+      "question" : qData['question'],
+      "answers" : qData['answers']
+    };
+
+    broadcastCommand(jsonEncode(startGamePacket));
+  }
+
+  void processNetworkMessage(String msg){
+    print("Message received: $msg");
+    try{
+      final String msgString = msg.toString();
+      final data = jsonDecode(msgString);
+      print("Json received: $data");
+
+      if(data['type'] == 'START_GAME'){
+        print("Started Game on this Device");
+        isPlaying = true;
+        currentRound = data['round'] ?? 1;
+        totalRounds = data['rounds'] ?? 10;
+        answerTimeLimit = data['timeLimit'] ?? 20;
+        currentQuestion = data['question'] ?? "No Question";
+        currentAnswers = List<String>.from(data['answers']);
+        _answersReceivedThisRound = 0;
+        notifyListeners();
+      }
+      else if(data['type'] == 'SUBMIT_ANSWER' && mode == Mode.host){
+        String pName = data['playerName'] ?? "Unknown";
+        int ansIdx = data['answerIndex'] ?? -1;
+
+        if(ansIdx == _correctAnswerIndex){
+          scores[pName] = (scores[pName] ?? 0) + 1; // + 1 point
+        }
+        else{
+          scores[pName] = scores[pName] ?? 0; // trägt spieler mit 0 punkte ein
+        }
+        _answersReceivedThisRound++;
+
+        if(_answersReceivedThisRound >= clientCount){
+
+          _answersReceivedThisRound = -999;
+
+          if(currentRound < totalRounds){
+            Future.delayed(const Duration(seconds: 2), () {
+              int nextRound = currentRound + 1;
+
+              final qData = _getQuestionForRound(nextRound);
+              _correctAnswerIndex = qData['correctIndex'];
+
+              final nextRoundPacket = {
+                "type" : "START_GAME",
+                "round" : nextRound,
+                "rounds" : totalRounds,
+                "timeLimit" : answerTimeLimit,
+                "question" : qData['question'],
+                "answers" : qData['answers']
+              };
+
+              broadcastCommand(jsonEncode(nextRoundPacket));
+
+            });
+          }else{
+            print("Game is over");
+          }
+        }
+      }
+      // TODO make the Leaderboard
+      else if(data['type'] == 'ROUND_OVER'){
+        //isPlaying = false;
+        //showLeaderboard = true;
+
+      }
+    } catch(e){
+      print("Error Gameloop");
+    }
   }
 }

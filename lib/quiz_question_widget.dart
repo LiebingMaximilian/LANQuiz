@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class QuizQuestionWidget extends StatefulWidget {
   final int currentRound;
   final int totalRounds;
+  final int timeLimit;
 
   final String question;
   final List<String> answers;
@@ -25,6 +26,7 @@ class QuizQuestionWidget extends StatefulWidget {
     required this.question,
     required this.answers,
     required this.giveAnswer,
+    required this.timeLimit
   });
 
   @override
@@ -48,7 +50,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
     _timerController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: Duration(seconds: widget.timeLimit),
     );
 
     _timerController.forward();
@@ -65,6 +67,21 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
         setState(() {});
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(QuizQuestionWidget oldWidget){
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.currentRound != widget.currentRound){
+      setState(() {
+        _answered = false;
+        _selectedIndex = null;
+        _startTime = DateTime.now();
+      });
+
+      _timerController.reset();
+      _timerController.forward();
+    }
   }
 
   @override

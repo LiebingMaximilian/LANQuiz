@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/quiz_question_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:bonsoir/bonsoir.dart';
 import 'game_state.dart';
+import 'dart:async';
+
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,13 +41,11 @@ class HomeScreen extends StatefulWidget {
 enum Mode { none, host, join }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController messageController = TextEditingController();
   final TextEditingController ipController = TextEditingController(); // ← moved here
   bool _isDiscovering = false;
 
   @override
   void dispose() {
-    messageController.dispose();
     ipController.dispose();
     Provider.of<GameState>(context, listen: false).stopDiscovery();
     super.dispose();
@@ -63,6 +65,31 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final gameState = Provider.of<GameState>(context);
+
+    if (gameState.showLeaderboard) { // TODO make Leaderboard w Scores
+
+    }
+
+    if(gameState.isPlaying){
+      return QuizQuestionWidget(
+          currentRound: gameState.currentRound,
+          totalRounds: gameState.totalRounds,
+          question: gameState.currentQuestion,
+          timeLimit: gameState.answerTimeLimit,
+          answers: gameState.currentAnswers,
+          giveAnswer: (index, timeTaken){
+            print("answer $index logged in $timeTaken seconds");
+
+            final answerPacket = {
+              "type" : "SUBMIT_ANSWER",
+              "playerName" : gameState.myName,
+              "answerIndex" : index,
+              "timeTaken" : timeTaken
+            };
+            gameState.sendToServer(jsonEncode(answerPacket));
+          },
+      );
+    }
 
     // ── 1. START SCREEN ──────────────────────────────────────────────────────
     if (gameState.mode == Mode.none) {
@@ -212,90 +239,297 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // ── 2. LOBBY SCREEN ──────────────────────────────────────────────────────
+    // ── 2. Splitting of Host and Players ────────────────────────────────
+    if(gameState.mode == Mode.host){
+      if(gameState.localIp == "10.0.2.16"){
+        gameState.localIp = "10.0.2.2";
+      }
+      return HostSettingsScreen(gameState: gameState);
+    }
+    else{
+      return const PlayerWaitingScreen();
+    }
+  }
+}
+
+class HostSettingsScreen extends StatefulWidget{
+  final GameState gameState;
+  const HostSettingsScreen({super.key, required this.gameState});
+
+  @override
+  State<HostSettingsScreen> createState() => _HostSettingsScreenState();
+}
+
+
+class _HostSettingsScreenState extends State<HostSettingsScreen>{
+  double _rounds = 10; // Presetting
+  double _answertimelimit = 20;
+
+  @override
+  Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(
-        title: Text(gameState.mode == Mode.host
-            ? "Lobby (Hosting)"
-            : "Lobby (Joined)"),
+        title: const Text("Game Settings"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.exit_to_app),
+            icon: const Icon(Icons.close),
             onPressed: () {
-              // gameState.reset();
+              // cancel game later, return to Homescreen
             },
           )
         ],
       ),
-      body: Column(
-        children: [
-          if (gameState.mode == Mode.host)
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Container(
-              color: Colors.blue.shade50,
-              width: double.infinity,
               padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const Text("Your friends should connect to:"),
-                  const SizedBox(height: 4),
-                  SelectableText(
-                    gameState.localIp ?? "Finding IP...",
-                    style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue),
-                  ),
-                ],
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: gameState.messages.length,
-              itemBuilder: (context, index) => Card(
-                child: ListTile(title: Text(gameState.messages[index])),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: messageController,
-                      decoration: const InputDecoration(
-                        hintText: "Type a message...",
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 16),
+                  const Icon(Icons.wifi, color: Colors.blue),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Spieler können beitreten über: "),
+                      Text(
+                         widget.gameState.localIp ?? "Loading IP ...",
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                      onSubmitted: (_) {
-                        if (messageController.text.isNotEmpty) {
-                          gameState.send(messageController.text);
-                          messageController.clear();
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FloatingActionButton(
-                    mini: true,
-                    onPressed: () {
-                      if (messageController.text.isNotEmpty) {
-                        gameState.send(messageController.text);
-                        messageController.clear();
-                      }
-                    },
-                    child: const Icon(Icons.send),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 40),
+            // TODO add more Setting for Jokers, SpecialRounds, etc.
+            Text(
+              "Number of Rounds: ${_rounds.toInt()}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Slider(
+              value: _rounds,
+              min: 5,
+              max: 30,
+              divisions: 25,
+              label: _rounds.toInt().toString(),
+              onChanged: (double value){
+                setState(() {
+                  _rounds = value;
+                });
+              },
+            ),
+            const SizedBox(height: 40),
+            Text(
+              "Answering Time limit: ${_answertimelimit.toInt()} sec",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Slider(
+              value: _answertimelimit,
+              min: 5,
+              max: 60,
+              divisions: 55,
+              label: _answertimelimit.toInt().toString(),
+              onChanged: (double value){
+                setState(() {
+                  _answertimelimit = value;
+                });
+              },
+            ),
+
+            const Spacer(),
+
+            ElevatedButton(
+                onPressed: (){
+                  // Start Game
+                  print("Starting Game with ${_rounds.toInt()} rounds");
+                  print("Staring Game with answering time: ${_answertimelimit.toInt()}");
+
+                  widget.gameState.startGame(_rounds.toInt(), _answertimelimit.toInt());
+
+                },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 60),
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              child: const Text("START GAME"),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+class PlayerWaitingScreen extends StatefulWidget {
+  const PlayerWaitingScreen({super.key});
+
+  @override
+  State<PlayerWaitingScreen> createState() => _PlayerWaitingScreenState();
+}
+
+class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
+  late Timer _timer;
+  int _factIndex = 0;
+
+  final List<String> _facts = [
+    "An octopus has 3 hearts.",
+    "Botanically speaking, bananas are berries.",
+    "Strawberries are not actually berries, but aggregate fruits.",
+    "The Eiffel Tower can grow up to 15 cm in the summer.",
+    "In Switzerland, it is illegal to own just one guinea pig.",
+    "Honey never spoils. You can eat 3,000-year-old honey.",
+    "A day on Venus is longer than a year on Venus.",
+    "Nintendo's headquarters were originally built to manufacture playing cards.",
+    "Kangaroos cannot walk backwards.",
+    "A child asks up to 500 questions a day.",
+    "In ancient Rome, urine was an important ingredient in laundry detergents.",
+    "The shortest war in history was between Great Britain and Zanzibar – it lasted only 38 minutes and ended in a clear victory for Great Britain.",
+    "A shark's teeth constantly grow back, totaling about 30,000 teeth in a shark's lifetime.",
+    "The moon has no atmosphere, which is why there are no sounds, wind movements, or weather phenomena.",
+    "A human has an average of 1,460 dreams per year. That's 4 per night.",
+    "Polar bears have black skin to better absorb the sun's rays.",
+    "The first 5 seconds after an earthquake are the most dangerous because this is when the strongest tremors often occur, destabilizing buildings, bridges, and other structures, making the risk of collapse and further damage the highest.",
+    "The longest time anyone has held their breath underwater is 24 minutes and 37 seconds.",
+    "Lemons float on water, whereas limes sink.",
+    "The British Labour Party sings its party anthem to the tune of 'O Tannenbaum' ('O Christmas Tree')."
+    "This App was made by Maximilian, Julian and Severin",
+  ];
+
+  @override
+  void initState(){
+    super.initState();
+    _facts.shuffle();
+    _timer = Timer.periodic(const Duration(seconds: 7), (timer){
+      setState(() {
+        _factIndex = (_factIndex + 1) % _facts.length;
+      });
+    });
+  }
+
+  @override
+  void dispose(){
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context){
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade800,
+              Colors.blue.shade400,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white70)
+                    ),
+                    SizedBox(width: 15),
+                    Text(
+                      "Waiting for Host ...",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 1.2
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(flex: 2),
+                const SizedBox(height: 20),
+
+                // Facts w Animation
+                Container(
+                  padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white54,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            "Did you know ?",
+                            style: TextStyle(color: Colors.white60, fontSize: 20),
+                          ),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            height: 150,
+                            child: Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 500),
+                                transitionBuilder: (Widget child, Animation<double> animation){
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                          begin: const Offset(0.0, 0.2),
+                                          end: Offset.zero)
+                                          .animate(animation),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  _facts[_factIndex],
+                                  key: ValueKey<int>(_factIndex),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ],
+                ),
+                  ),
+                const Spacer(flex: 3),
+
+                const Text(
+                    "LAN Quizduell",
+                    style: TextStyle(color: Colors.white24, fontSize: 12),
+                  ),
+              ],
+            )
+          )
+        )
+      ),
+    );
+  }
+
+
 }

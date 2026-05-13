@@ -5,14 +5,14 @@
       "name": "LANQuiz (Host)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "yxq8dmfe8dgesogm",//change to your device, find with "flutter devices"
+      "deviceId": "emulator-5554",//change to your device, find with "flutter devices"
       "args": ["--dart-define=MODE=HOST"] // this sets an env variable so we dont have to select manually all the time
     },
     {
       "name": "LANQuiz (Player1)",
       "request": "launch",
       "type": "dart",
-      "deviceId": "R52NB0K7THB",
+      "deviceId": "emulator-5556",
       "args": ["--dart-define=MODE=PLAYER"]
     },
     {
