@@ -52,3 +52,5 @@ void broadcastToAll(String jsonMessage) {
     player.add(jsonMessage);
   }
 }
+
+int get clientCount => _connectedClients.length;
