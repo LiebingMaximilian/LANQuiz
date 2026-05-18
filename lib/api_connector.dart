@@ -105,7 +105,7 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
           return fetchQuestions(amountQuestions);
         case 4: // no questions available who havent been used - reset token or ask user if token should be reset
           bool rst = await resetToken();
-          if(bool == true){
+          if(rst == true){
             //TODO: Message to user that token has been reset succesfully
             return fetchQuestions(amountQuestions);
           } else {
