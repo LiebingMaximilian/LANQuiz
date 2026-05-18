@@ -9,6 +9,16 @@ varName[questionNum].correctAnswer for the correct Answer
 varName[questionNum].incorrectAnswers for the incorrect Answer
 
 for later use .difficulty, .category are also available
+
+EXAMPLE containerized api answer:
+
+
+multiple                                                          //type
+Entertainment: Video Games                                        //category
+What is the first Sony PlayStation console that runs on CD?       //question
+PS                                                                //correct_answer
+[PS2, PS3, PS4]                                                   //list wrong answers
+
 */
 
 String? token = "3b3"; //false token, let the code create a new one through the exception
@@ -65,9 +75,9 @@ class Question { //question class with all available information
   }
 }
 
-
+//TODO: add parameter for categories and difficulty and add api calls for that
 Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches and returns questions.
-  if(amountQuestions > 0 || amountQuestions < 100) {
+  if(amountQuestions > 0 || amountQuestions <= 50) {
     final String url = 'https://opentdb.com/api.php?amount=$amountQuestions' +
         (token != null ? '&token=' : '');
     final response = await http.get(
@@ -93,12 +103,17 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
           Token newToken = await createToken();
           token = newToken.token;
           return fetchQuestions(amountQuestions);
-        case 4: // no questions available who havent been used - reset token
-          //getting new token and replacing it
-        //TODO: Error message in user interface telling user token has been reset
-          Token newToken = await createToken();
-          token = newToken.token;
-        return fetchQuestions(amountQuestions);
+        case 4: // no questions available who havent been used - reset token or ask user if token should be reset
+          bool rst = await resetToken();
+          if(bool == true){
+            //TODO: Message to user that token has been reset succesfully
+            return fetchQuestions(amountQuestions);
+          } else {
+            //create new token
+            Token newToken = await createToken();
+            token = newToken.token;
+            return fetchQuestions(amountQuestions);
+          }
 
         case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
@@ -144,4 +159,18 @@ Future<Token> createToken() async{ //fetching tokens
   } else {
     throw Exception("Unknown Error token creator");
   }
+}
+
+Future<bool> resetToken() async{
+  final response = await http.get(Uri.parse('https://opentdb.com/api_token.php?command=reset&token=$token'));
+  if(response.statusCode == 200){
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if(data['response_code'] == 0){
+      return true;
+    }
+    //reset failed
+    return false;
+  }
+  //api call failed
+  return false; //easy option, alternative, retry 3 times
 }
