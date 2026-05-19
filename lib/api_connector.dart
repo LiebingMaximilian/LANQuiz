@@ -75,17 +75,16 @@ class Question { //question class with all available information
   }
 }
 
-//TODO: add parameter for categories and difficulty and add api calls for that
+//TODO: add parameter for categories and add api calls for that
 Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches and returns questions.
   if(amountQuestions > 0 || amountQuestions <= 50) {
     final String url = 'https://opentdb.com/api.php?amount=$amountQuestions' +
-        (token != null ? '&token=' : '');
+        (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
     final response = await http.get(
         Uri.parse(url)
     );
 
-    if (response.statusCode ==
-        200) { //if server returned 200 OK response, parse json to map
+    if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
       final data = QuestionData.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
       switch (data.responseCode) {
