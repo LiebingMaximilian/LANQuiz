@@ -6,6 +6,8 @@ import 'host.dart';
 import 'client.dart';
 import 'main.dart';
 import 'dart:convert';
+import 'classes.dart';
+import 'api_connector.dart';
 
 class GameState extends ChangeNotifier {
   // Connection State
@@ -112,7 +114,9 @@ Future<void> discoverGames() async {
 
       _streamSubscription = channel!.stream.listen(
         (msg) {
-          processNetworkMessage(msg);
+          processNetworkMessage(msg).catchError((error) { //"fire and forget should work here"
+            print("Error processing message: $error");
+          });
 
         },
         onError: (error) {
@@ -157,49 +161,42 @@ Future<void> discoverGames() async {
     super.dispose();
   }
 
-  Map<String, dynamic> _getQuestionForRound(int round){
-    //TODO: open trivia api
 
-    if(round == 1){
-      return{
-        "question": "Was ist die Hauptstadt von Frankreich?",
-        "answers": ["Berlin", "Madrid", "Paris", "Rom"],
-        "correctIndex": 2 // Paris
-      };
-    }
-    else{
-      return{
-        "question": "Frage für Runde $round (Platzhalter)",
-        "answers": ["Antwort A", "Antwort B", "Antwort C", "Antwort D"],
-        "correctIndex": 0 // A
-      };
-    }
+  Future<ClientQuestion> _getQuestionForRound() async {
+    Question question = await fetchQuestion(); 
+    ClientQuestion clientQuestion = ClientQuestion.QuestionToClientQuestion(question);
+    return clientQuestion;
   }
 
-  void startGame(int rounds, int timeLimit){
+  Future<void> startGame(int rounds, int timeLimit) async{
     if (mode != Mode.host){
       return;
     }
 
     totalRounds = rounds;
     currentRound = 1;
+    answerTimeLimit = timeLimit;
 
-    final qData = _getQuestionForRound(currentRound);
-    _correctAnswerIndex = qData['correctIndex'];
+    await sendQuestion();
+  }
+  
+  Future<void> sendQuestion () async{
+    final ClientQuestion clientQuestion = await _getQuestionForRound();
+    _correctAnswerIndex = clientQuestion.correctIndex;
 
     final startGamePacket = {
       "type" : "START_GAME",
       "round" : currentRound,
       "rounds" : totalRounds,
-      "timeLimit" : timeLimit,
-      "question" : qData['question'],
-      "answers" : qData['answers']
+      "timeLimit" : answerTimeLimit,
+      "question" : clientQuestion.question,
+      "answers" : clientQuestion.answers
     };
 
     broadcastCommand(jsonEncode(startGamePacket));
   }
 
-  void processNetworkMessage(String msg){
+  Future<void> processNetworkMessage(String msg) async{
     print("Message received: $msg");
     try{
       final String msgString = msg.toString();
@@ -234,19 +231,19 @@ Future<void> discoverGames() async {
           _answersReceivedThisRound = -999;
 
           if(currentRound < totalRounds){
-            Future.delayed(const Duration(seconds: 2), () {
+            Future.delayed(const Duration(seconds: 2), () async {
               int nextRound = currentRound + 1;
 
-              final qData = _getQuestionForRound(nextRound);
-              _correctAnswerIndex = qData['correctIndex'];
+              final ClientQuestion clientQuestion = await _getQuestionForRound();
+              _correctAnswerIndex = clientQuestion.correctIndex;
 
               final nextRoundPacket = {
                 "type" : "START_GAME",
                 "round" : nextRound,
                 "rounds" : totalRounds,
                 "timeLimit" : answerTimeLimit,
-                "question" : qData['question'],
-                "answers" : qData['answers']
+                "question" : clientQuestion.question,
+                "answers" : clientQuestion.answers
               };
 
               broadcastCommand(jsonEncode(nextRoundPacket));

@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 
-/*USAGE: List<Question> varName = await fetchQuestions(amount of questions);
-varName[questionNum].type for the type of question
-varName[questionNum].question for the question string
-varName[questionNum].correctAnswer for the correct Answer
-varName[questionNum].incorrectAnswers for the incorrect Answer
+/*USAGE: Question varName = await fetchQuestion(amount of questions);
+varName.type for the type of question
+varName.question for the question string
+varName.correctAnswer for the correct Answer
+varName.incorrectAnswers for the incorrect Answer
 
 for later use .difficulty, .category are also available
 
@@ -27,21 +27,19 @@ int excCntr = 0;
 
 class QuestionData{  //because the api is staged we have to first handle responsecodes
   final int responseCode;
-  final List<Question> questions; //and make the rest into a list to handle in the other class
+  final Question question; //and make the rest into a list to handle in the other class
 
 
 
   const QuestionData({
     required this.responseCode,
-    required this.questions,
+    required this.question,
   });
 
   factory QuestionData.fromJson(Map<String, dynamic> json){
     return QuestionData(
       responseCode: json['response_code'], //decoding response code
-      questions: List<Question>.from(
-        json['results'].map((x) => Question.fromJson(x)),
-      ),
+      question: Question.fromJson(json['results'][0]),
     );
   }
 }
@@ -76,9 +74,9 @@ class Question { //question class with all available information
 }
 
 //TODO: add parameter for categories and add api calls for that
-Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches and returns questions.
-  if(amountQuestions > 0 || amountQuestions <= 50) {
-    final String url = 'https://opentdb.com/api.php?amount=$amountQuestions' +
+Future<Question> fetchQuestion() async { // fetches and returns questions.
+
+    final String url = 'https://opentdb.com/api.php?amount=1' +
         (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
     final response = await http.get(
         Uri.parse(url)
@@ -92,7 +90,7 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
           if(excCntr != 0) {
             excCntr = 0; //resetting exception counter;
           }
-          return data.questions;
+          return data.question;
         case 1: //no questions left
           throw Exception("No Results, not enough questions left");
         case 2: // invalid url
@@ -101,24 +99,24 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
         //creates token when token is invalid
           Token newToken = await createToken();
           token = newToken.token;
-          return fetchQuestions(amountQuestions);
+          return fetchQuestion();
         case 4: // no questions available who havent been used - reset token or ask user if token should be reset
           bool rst = await resetToken();
           if(rst == true){
             //TODO: Message to user that token has been reset succesfully
-            return fetchQuestions(amountQuestions);
+            return fetchQuestion();
           } else {
             //create new token
             Token newToken = await createToken();
             token = newToken.token;
-            return fetchQuestions(amountQuestions);
+            return fetchQuestion();
           }
 
         case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
           excCntr++; //exception counter
           await Future.delayed(Duration(seconds: 5));
-          return fetchQuestions(amountQuestions);
+          return fetchQuestion();
         } else {
           excCntr = 0;
           throw Exception("Unknown error, failed 3 times fetching questions");
@@ -130,7 +128,7 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
       if(excCntr < 3) {
         excCntr++; //exception counter
         await Future.delayed(Duration(seconds: 5));
-        return fetchQuestions(amountQuestions);
+        return fetchQuestion();
       } else {
         excCntr = 0;
         throw Exception("Unknown error, failed 3 times fetching questions");
@@ -138,10 +136,7 @@ Future<List<Question>> fetchQuestions(int amountQuestions) async { // fetches an
     } else {
       throw Exception('http request failed'); //unknown error
     }
-  } else {
-    throw Exception("Invalid question count");
   }
-}
 class Token{ //token class for handling tokens
   final String token;
   const Token({required this.token});
