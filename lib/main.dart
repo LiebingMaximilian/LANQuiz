@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:bonsoir/bonsoir.dart';
 import 'game_state.dart';
 import 'dart:async';
+import 'package:html/parser.dart';
 
 
 void main() {
@@ -74,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return QuizQuestionWidget(
           currentRound: gameState.currentRound,
           totalRounds: gameState.totalRounds,
-          question: gameState.currentQuestion,
+          question: parse(gameState.currentQuestion).body!.text,
           timeLimit: gameState.answerTimeLimit,
           answers: gameState.currentAnswers,
           giveAnswer: (index, timeTaken){
