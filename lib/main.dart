@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/classes.dart';
 import 'package:lan_quiz/quiz_question_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:bonsoir/bonsoir.dart';
@@ -67,8 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final gameState = Provider.of<GameState>(context);
 
-    if (gameState.showLeaderboard) { // TODO make Leaderboard w Scores
-
+    if (gameState.showLeaderboard) {
+      return gameState.leaderboard;
     }
 
     if(gameState.isPlaying){
@@ -78,16 +79,10 @@ class _HomeScreenState extends State<HomeScreen> {
           question: parse(gameState.currentQuestion).body!.text,
           timeLimit: gameState.answerTimeLimit,
           answers: gameState.currentAnswers,
-          giveAnswer: (index, timeTaken){
-            print("answer $index logged in $timeTaken seconds");
-
-            final answerPacket = {
-              "type" : "SUBMIT_ANSWER",
-              "playerName" : gameState.myName,
-              "answerIndex" : index,
-              "timeTaken" : timeTaken
-            };
-            gameState.sendToServer(jsonEncode(answerPacket));
+          giveAnswer: (answer, timeTaken){
+            print("answer $answer logged in $timeTaken seconds");
+            final answerPacket = SubmitAnswerPacket(answer: answer, timeTaken: timeTaken, playerName: gameState.myName);
+            gameState.sendToServer(jsonEncode(answerPacket.toJson()));
           },
       );
     }
@@ -317,7 +312,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen>{
             ),
             Slider(
               value: _rounds,
-              min: 5,
+              min: 2,
               max: 30,
               divisions: 25,
               label: _rounds.toInt().toString(),

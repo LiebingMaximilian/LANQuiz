@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 class LeaderboardWidget extends StatefulWidget {
   /// List of players with their names and scores.
   final List<LeaderboardEntry> entries;
-  final int timeLimit;             // ADD THIS
-  final VoidCallback onTimerEnd; 
+  final int timeLimit;
 
   const LeaderboardWidget({
     super.key,
     required this.entries,
     required this.timeLimit,
-    required this.onTimerEnd,
   });
 
   @override
@@ -22,6 +20,13 @@ class LeaderboardEntry {
   final int score;
 
   const LeaderboardEntry({required this.name, required this.score});
+  Map<String, dynamic> toJson() => {'name': name, 'score': score};
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
+      LeaderboardEntry(
+        name: json['name'] as String,
+        score: json['score'] as int,
+      );
 }
 
 class _LeaderboardWidgetState extends State<LeaderboardWidget>
@@ -76,9 +81,6 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
     _timerController.forward();
 
     _timerController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        widget.onTimerEnd();
-      }
   });
   }
 
@@ -87,6 +89,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
     for (final c in _barControllers) {
       c.dispose();
     }
+    _timerController.dispose();
     super.dispose();
   }
 

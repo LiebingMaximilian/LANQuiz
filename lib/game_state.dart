@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/leaderboard.dart';
 import 'package:web_socket_channel/io.dart';
 import 'host.dart';
 import 'client.dart';
@@ -24,6 +25,9 @@ class GameState extends ChangeNotifier {
   int answerTimeLimit = 20;
   String currentQuestion = "";
   List<String> currentAnswers = [];
+
+
+  late LeaderboardWidget leaderboard;
 
   // Scoring and Loop Logic
   String myName = "Spieler ${DateTime.now().millisecond%1000}"; //randomname for now TODO player input own name
@@ -183,42 +187,36 @@ Future<void> discoverGames() async {
   Future<void> sendQuestion () async{
     final ClientQuestion clientQuestion = await _getQuestionForRound();
     _correctAnswerIndex = clientQuestion.correctIndex;
+    final startGamePacket = StartRoundPacket(round: currentRound, rounds: totalRounds, timeLimit: answerTimeLimit, question: clientQuestion.question, answers: clientQuestion.answers);
 
-    final startGamePacket = {
-      "type" : "START_GAME",
-      "round" : currentRound,
-      "rounds" : totalRounds,
-      "timeLimit" : answerTimeLimit,
-      "question" : clientQuestion.question,
-      "answers" : clientQuestion.answers
-    };
-
-    broadcastCommand(jsonEncode(startGamePacket));
+    broadcastCommand(jsonEncode(startGamePacket.toJson()));
   }
 
   Future<void> processNetworkMessage(String msg) async{
     print("Message received: $msg");
     try{
       final String msgString = msg.toString();
-      final data = jsonDecode(msgString);
-      print("Json received: $data");
+      final packet = Packet.fromJson(jsonDecode(msgString));
 
-      if(data['type'] == 'START_GAME'){
+      if(packet.type == PacketType.START_ROUND){
+        final startRoundPacket = packet as StartRoundPacket;
         print("Started Game on this Device");
         isPlaying = true;
-        currentRound = data['round'] ?? 1;
-        totalRounds = data['rounds'] ?? 10;
-        answerTimeLimit = data['timeLimit'] ?? 20;
-        currentQuestion = data['question'] ?? "No Question";
-        currentAnswers = List<String>.from(data['answers']);
+        showLeaderboard = false;
+        currentRound = startRoundPacket.round ?? 1;
+        totalRounds = startRoundPacket.rounds ?? 10;
+        answerTimeLimit = startRoundPacket.timeLimit ?? 20;
+        currentQuestion = startRoundPacket.question ?? "No Question";
+        currentAnswers = List<String>.from(startRoundPacket.answers);
         _answersReceivedThisRound = 0;
         notifyListeners();
       }
-      else if(data['type'] == 'SUBMIT_ANSWER' && mode == Mode.host){
-        String pName = data['playerName'] ?? "Unknown";
-        int ansIdx = data['answerIndex'] ?? -1;
+      else if(packet.type == PacketType.SUBMIT_ANSWER && mode == Mode.host){
+        final submitAnswerPacket = packet as SubmitAnswerPacket;
+        String pName = submitAnswerPacket.playerName ?? "Unknown";
+        String answer = submitAnswerPacket.answer ?? "";
 
-        if(ansIdx == _correctAnswerIndex){
+        if(answer == currentAnswers[_correctAnswerIndex]){
           scores[pName] = (scores[pName] ?? 0) + 1; // + 1 point
         }
         else{
@@ -232,36 +230,54 @@ Future<void> discoverGames() async {
 
           if(currentRound < totalRounds){
             Future.delayed(const Duration(seconds: 2), () async {
+              await showLeaderboardForXSeconds(5, false);
               int nextRound = currentRound + 1;
 
               final ClientQuestion clientQuestion = await _getQuestionForRound();
               _correctAnswerIndex = clientQuestion.correctIndex;
 
-              final nextRoundPacket = {
-                "type" : "START_GAME",
-                "round" : nextRound,
-                "rounds" : totalRounds,
-                "timeLimit" : answerTimeLimit,
-                "question" : clientQuestion.question,
-                "answers" : clientQuestion.answers
-              };
+              final nextRoundPacket = StartRoundPacket(round: nextRound, rounds: totalRounds, timeLimit: answerTimeLimit, question: clientQuestion.question, answers: clientQuestion.answers);
 
-              broadcastCommand(jsonEncode(nextRoundPacket));
+              broadcastCommand(jsonEncode(nextRoundPacket.toJson()));
 
             });
           }else{
             print("Game is over");
+            await showLeaderboardForXSeconds(20, true);
           }
         }
       }
-      // TODO make the Leaderboard
-      else if(data['type'] == 'ROUND_OVER'){
-        //isPlaying = false;
-        //showLeaderboard = true;
-
+      else if(packet.type == PacketType.SHOW_LEADERBOARD){
+        final showLeaderboardPacket = packet as ShowLeaderboardPacket;
+        leaderboard = LeaderboardWidget(entries: showLeaderboardPacket.entries,timeLimit: showLeaderboardPacket.time);
+        isPlaying = false;
+        showLeaderboard = true;
+        notifyListeners();
+        await Future.delayed(Duration(seconds: showLeaderboardPacket.time));
+        if(showLeaderboardPacket.isFinalLeaderboard)
+        {
+          mode = Mode.none;
+          isPlaying = false;
+          showLeaderboard = false;
+          notifyListeners();
+        }
       }
     } catch(e){
       print("Error Gameloop");
     }
   }
+
+  Future<void> showLeaderboardForXSeconds(int seconds, bool isFinalLeaderboard) async{
+    List<LeaderboardEntry> entries = scoresToLeaderboard(scores);
+    ShowLeaderboardPacket showLeaderboardPacket = ShowLeaderboardPacket(time: seconds, entries: entries, isFinalLeaderboard: isFinalLeaderboard) ;
+    broadcastCommand(jsonEncode(showLeaderboardPacket.toJson()));
+    await Future.delayed(Duration(seconds: seconds));
+  }
+
+  List<LeaderboardEntry> scoresToLeaderboard(Map<String, dynamic> scores) {
+  return scores.entries
+      .map((e) => LeaderboardEntry(name: e.key, score: e.value as int))
+      .toList()
+    ..sort((a, b) => b.score.compareTo(a.score));
+}
 }
