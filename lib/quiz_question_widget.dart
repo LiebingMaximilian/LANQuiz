@@ -17,7 +17,7 @@ class QuizQuestionWidget extends StatefulWidget {
   ///
   /// timeTaken:
   /// seconds it took to answer
-  final void Function(int index, double timeTaken) giveAnswer;//TODO what do we do with the answer
+  final void Function(String answer, int timeTaken) giveAnswer;
 
   const QuizQuestionWidget({
     super.key,
@@ -38,7 +38,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   late AnimationController _timerController;
 
   bool _answered = false;
-  int? _selectedIndex;
+  String? _answer;
 
   late DateTime _startTime;
 
@@ -60,9 +60,9 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
         _answered = true;
 
         final timeTaken =
-            DateTime.now().difference(_startTime).inMilliseconds / 1000;
+            DateTime.now().difference(_startTime).inMilliseconds;
 
-        widget.giveAnswer(5, timeTaken);
+        widget.giveAnswer("", timeTaken);
 
         setState(() {});
       }
@@ -75,7 +75,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
     if(oldWidget.currentRound != widget.currentRound){
       setState(() {
         _answered = false;
-        _selectedIndex = null;
+        _answer = null;
         _startTime = DateTime.now();
       });
 
@@ -90,18 +90,18 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
     super.dispose();
   }
 
-  void _handleAnswer(int index) {
+  void _handleAnswer(String answer) {
     if (_answered) return;
 
     _answered = true;
-    _selectedIndex = index;
+    _answer = answer;
 
     _timerController.stop();
 
     final timeTaken =
-        DateTime.now().difference(_startTime).inMilliseconds / 1000;
+        DateTime.now().difference(_startTime).inMilliseconds;
 
-    widget.giveAnswer(index, timeTaken);
+    widget.giveAnswer(answer, timeTaken);
 
     setState(() {});
   }
@@ -181,12 +181,12 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                           childAspectRatio: 1.8,
                         ),
                         itemBuilder: (context, index) {
-                          final isSelected = _selectedIndex == index;
+                          final isSelected = _answer == widget.answers[index];
 
                           return ElevatedButton(
                             onPressed: _answered
                                 ? null
-                                : () => _handleAnswer(index),
+                                : () => _handleAnswer(widget.answers[index]),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isSelected
                                   ? Colors.orange
