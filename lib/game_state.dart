@@ -279,5 +279,29 @@ Future<void> discoverGames() async {
       .map((e) => LeaderboardEntry(name: e.key, score: e.value as int))
       .toList()
     ..sort((a, b) => b.score.compareTo(a.score));
+ }
+
+  void setNames(String newName){
+    if(newName.trim().isNotEmpty) {
+      myName = newName.trim();
+      notifyListeners();
+    }
+  }
+
+  void cancelJoin() {
+    // Note: No await or async, if await is used here the code will
+    // be stuck here when the wrong ip address was used when joining a game
+    print('canceling join');
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    channel?.sink.close();
+    channel = null;
+    mode = Mode.none;
+
+    print('Canceled');
+    notifyListeners();
+
+  }
+
 }
-}
+
