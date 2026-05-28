@@ -33,11 +33,15 @@ Future<BonsoirBroadcast> startBroadcast() async {
 }
 
 List<WebSocket> _connectedClients = [];
+HttpServer? _server;
 
-void startSocketServer({required Function(String) onMessageReceived}) async {
-  var server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+Future<void> startSocketServer({required Function(String) onMessageReceived}) async {
+// kill old server and clients before starting a new one
+  await stopSocketServer();
+
+  var _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
   print("Server running...");
-  server.transform(WebSocketTransformer()).listen((WebSocket clientSocket) {
+  _server!.transform(WebSocketTransformer()).listen((WebSocket clientSocket) {
     _connectedClients.add(clientSocket);
     clientSocket.listen((data) {
       onMessageReceived(data.toString());
@@ -45,6 +49,19 @@ void startSocketServer({required Function(String) onMessageReceived}) async {
       _connectedClients.remove(clientSocket);
     });
   });
+}
+
+// method to free port 8080 and cleans up
+Future<void> stopSocketServer() async {
+  if(_server != null){
+    await _server!.close(force: true);
+    _server = null;
+  }
+  for(var client in _connectedClients){
+    client.close();
+  }
+  _connectedClients.clear();
+  print("stopped server and port is freed");
 }
 
 void broadcastToAll(String jsonMessage) {

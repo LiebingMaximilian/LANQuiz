@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:lan_quiz/leaderboard.dart';
 import 'package:web_socket_channel/io.dart';
 import 'host.dart';
@@ -249,18 +250,24 @@ Future<void> discoverGames() async {
       }
       else if(packet.type == PacketType.SHOW_LEADERBOARD){
         final showLeaderboardPacket = packet as ShowLeaderboardPacket;
-        leaderboard = LeaderboardWidget(entries: showLeaderboardPacket.entries,timeLimit: showLeaderboardPacket.time);
-        isPlaying = false;
-        showLeaderboard = true;
-        notifyListeners();
-        await Future.delayed(Duration(seconds: showLeaderboardPacket.time));
-        if(showLeaderboardPacket.isFinalLeaderboard)
-        {
+
+        if(showLeaderboardPacket.time == 0){
           mode = Mode.none;
           isPlaying = false;
           showLeaderboard = false;
           notifyListeners();
+          return;
         }
+
+        leaderboard = LeaderboardWidget(
+            entries: showLeaderboardPacket.entries,
+            timeLimit: showLeaderboardPacket.time,
+            isHost: mode == Mode.host,
+            isFinal: showLeaderboardPacket.isFinalLeaderboard,
+        );
+        isPlaying = false;
+        showLeaderboard = true;
+        notifyListeners();
       }
     } catch(e){
       print("Error Gameloop");
@@ -301,6 +308,46 @@ Future<void> discoverGames() async {
     print('Canceled');
     notifyListeners();
 
+  }
+
+  Future<void> restartGame() async{
+    if(mode != Mode.host) return;
+
+    print("game restartig...");
+
+    scores.clear();
+    _answersReceivedThisRound = 0;
+    currentRound = 1;
+
+    await sendQuestion();
+  }
+
+  void endGame(){
+    print("game ending...");
+
+    final endPacket = ShowLeaderboardPacket(
+        time: 0,
+        entries: scoresToLeaderboard(scores),
+        isFinalLeaderboard: true);
+
+    broadcastCommand(jsonEncode(endPacket.toJson()));
+
+    _broadcast?.stop();
+    _broadcast = null;
+
+    stopSocketServer();
+
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    channel?.sink.close();
+    channel = null;
+
+    mode = Mode.none;
+    isPlaying = false;
+    showLeaderboard = false;
+    scores.clear();
+
+    notifyListeners();
   }
 
 }
