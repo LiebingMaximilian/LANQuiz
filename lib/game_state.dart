@@ -255,6 +255,7 @@ Future<void> discoverGames() async {
           mode = Mode.none;
           isPlaying = false;
           showLeaderboard = false;
+          discoveredServices.clear();
           notifyListeners();
           return;
         }
@@ -303,6 +304,9 @@ Future<void> discoverGames() async {
     _streamSubscription = null;
     channel?.sink.close();
     channel = null;
+
+    discoveredServices.clear();
+
     mode = Mode.none;
 
     print('Canceled');
@@ -346,6 +350,7 @@ Future<void> discoverGames() async {
     isPlaying = false;
     showLeaderboard = false;
     scores.clear();
+    discoveredServices.clear();
 
     notifyListeners();
   }
