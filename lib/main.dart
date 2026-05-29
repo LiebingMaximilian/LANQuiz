@@ -67,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final gameState = Provider.of<GameState>(context);
-
     if (gameState.showLeaderboard) {
       return gameState.leaderboard;
     }
@@ -260,6 +259,13 @@ class HostSettingsScreen extends StatefulWidget{
 class _HostSettingsScreenState extends State<HostSettingsScreen>{
   double _rounds = 10; // Presetting
   double _answertimelimit = 20;
+  final hostNameController = TextEditingController();
+
+  @override
+  void dispose(){
+    hostNameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context){
@@ -340,6 +346,20 @@ class _HostSettingsScreenState extends State<HostSettingsScreen>{
               },
             ),
 
+            const SizedBox(height: 15),
+
+            TextFormField(
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Enter your Username',
+              ),
+              maxLength: 15,
+              controller: hostNameController,
+              onChanged: (text) {
+                Provider.of<GameState>(context, listen:false).setNames(text);
+              },
+            ),
+
             const Spacer(),
 
             ElevatedButton(
@@ -366,6 +386,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen>{
   }
 }
 
+
 class PlayerWaitingScreen extends StatefulWidget {
   const PlayerWaitingScreen({super.key});
 
@@ -376,6 +397,8 @@ class PlayerWaitingScreen extends StatefulWidget {
 class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
   late Timer _timer;
   int _factIndex = 0;
+  final playerNameController = TextEditingController();
+
 
   final List<String> _facts = [
     "An octopus has 3 hearts.",
@@ -415,6 +438,7 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
   @override
   void dispose(){
     _timer.cancel();
+    playerNameController.dispose();
     super.dispose();
   }
 
@@ -440,7 +464,7 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
                 // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     SizedBox(
                       width: 20,
                       height: 20,
@@ -456,6 +480,17 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
                         fontWeight: FontWeight.w300,
                         letterSpacing: 1.2
                       ),
+                    ),
+                    const SizedBox(width: 50),
+                    ElevatedButton(
+                      onPressed: () {
+                        Provider.of<GameState>(context, listen:false).cancelJoin();
+                        },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Icon(Icons.cancel_outlined),
                     ),
                   ],
                 ),
@@ -513,6 +548,29 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
                   ],
                 ),
                   ),
+                const SizedBox(height: 35),
+
+                TextFormField(
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: Colors.white),
+                    floatingLabelStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    labelText: 'Enter your Username',
+                    enabledBorder: OutlineInputBorder(
+                      borderSide:  BorderSide(color: Colors.white54, width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white, width: 2.5),
+                    ),
+                  ),
+                  maxLength: 15,
+                  controller: playerNameController,
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (text) {
+                    Provider.of<GameState>(context, listen:false).setNames(text);
+                  },
+                ),
+
                 const Spacer(flex: 3),
 
                 const Text(

@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/game_state.dart';
+import 'package:provider/provider.dart';
 
 class LeaderboardWidget extends StatefulWidget {
   /// List of players with their names and scores.
   final List<LeaderboardEntry> entries;
   final int timeLimit;
+  final bool isHost;
+  final bool isFinal;
 
   const LeaderboardWidget({
     super.key,
     required this.entries,
     required this.timeLimit,
+    this.isHost = false,
+    this.isFinal = false,
   });
 
   @override
@@ -152,6 +158,8 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
 
               // Continue button
               // Replace the SizedBox + ElevatedButton with:
+              // no timer for the final leaderboard, host should use the end game or restart buttons instead
+              if(!widget.isFinal)...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: SizedBox(
@@ -167,6 +175,46 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
                   ),
                 ),
               ),
+              ],
+              // only host should see the restart and end game buttons
+              if(widget.isHost && widget.isFinal)...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Provider.of<GameState>(context, listen: false).restartGame();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Restart Game'),
+                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Provider.of<GameState>(context, listen: false).endGame();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('End Game'),
+                      )
+                    )
+                  ],
+                )
+              ],
             ],
           ),
         ),
