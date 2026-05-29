@@ -353,6 +353,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen>{
                 border: OutlineInputBorder(),
                 labelText: 'Enter your Username',
               ),
+              maxLength: 15,
               controller: hostNameController,
               onChanged: (text) {
                 Provider.of<GameState>(context, listen:false).setNames(text);
@@ -562,6 +563,7 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
                       borderSide: BorderSide(color: Colors.white, width: 2.5),
                     ),
                   ),
+                  maxLength: 15,
                   controller: playerNameController,
                   style: const TextStyle(color: Colors.white),
                   onChanged: (text) {
