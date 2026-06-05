@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:lan_quiz/leaderboard.dart';
 import 'package:web_socket_channel/io.dart';
 import 'host.dart';
@@ -27,6 +26,10 @@ class GameState extends ChangeNotifier {
   String currentQuestion = "";
   List<String> currentAnswers = [];
 
+  // Joker
+  // saves for every player which joker was already used
+  Map<String, Set<JokerType>> usedJokers = {};
+  bool isWaitingForJoker = false;
 
   late LeaderboardWidget leaderboard;
 
@@ -41,7 +44,7 @@ class GameState extends ChangeNotifier {
   BonsoirDiscovery? _discovery;
   BonsoirBroadcast? _broadcast;
 
-  // ── Host ────────────────────────────────────────────────────────────────────
+// ── HOST ──────────────────────────────────────────────────────────────────────────────────────────────
 
   Future<void> hostGame() async {
     _broadcast = await startBroadcast();
@@ -65,7 +68,7 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Discovery ───────────────────────────────────────────────────────────────
+// ── DISCOVERY ─────────────────────────────────────────────────────────────────────────────────────────
 
 Future<void> discoverGames() async {
   discoveredServices.clear();
@@ -106,7 +109,7 @@ Future<void> discoverGames() async {
     _discovery = null;
   }
 
-  // ── Join ────────────────────────────────────────────────────────────────────
+// ── JOIN ──────────────────────────────────────────────────────────────────────────────────────────────
 
   Future<void> joinGame(String ip) async {
     try {
@@ -143,7 +146,7 @@ Future<void> discoverGames() async {
     }
   }
 
-  // ── Communication ───────────────────────────────────────────────────────────
+// ── COMMUNICATION ─────────────────────────────────────────────────────────────────────────────────────
 
   void broadcastCommand(String jsonMessage){
     if(mode == Mode.host){
@@ -155,7 +158,7 @@ Future<void> discoverGames() async {
     channel?.sink.add(jsonMessage);
   }
 
-  // ── Dispose ─────────────────────────────────────────────────────────────────
+// ── DISPOSE ───────────────────────────────────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
@@ -166,23 +169,12 @@ Future<void> discoverGames() async {
     super.dispose();
   }
 
+// ── QUESTIONS ─────────────────────────────────────────────────────────────────────────────────────────
 
   Future<ClientQuestion> _getQuestionForRound() async {
     Question question = await fetchQuestion(); 
     ClientQuestion clientQuestion = ClientQuestion.QuestionToClientQuestion(question);
     return clientQuestion;
-  }
-
-  Future<void> startGame(int rounds, int timeLimit) async{
-    if (mode != Mode.host){
-      return;
-    }
-
-    totalRounds = rounds;
-    currentRound = 1;
-    answerTimeLimit = timeLimit;
-
-    await sendQuestion();
   }
   
   Future<void> sendQuestion () async{
@@ -193,6 +185,8 @@ Future<void> discoverGames() async {
     broadcastCommand(jsonEncode(startGamePacket.toJson()));
   }
 
+// ── PACKETS ───────────────────────────────────────────────────────────────────────────────────────────
+
   Future<void> processNetworkMessage(String msg) async{
     print("Message received: $msg");
     try{
@@ -201,6 +195,10 @@ Future<void> discoverGames() async {
 
       if(packet.type == PacketType.START_ROUND){
         final startRoundPacket = packet as StartRoundPacket;
+        if(startRoundPacket.round == 1){
+          myUsedJokers.clear();
+          isWaitingForJoker = false;
+        }
         print("Started Game on this Device");
         isPlaying = true;
         showLeaderboard = false;
@@ -210,6 +208,7 @@ Future<void> discoverGames() async {
         currentQuestion = startRoundPacket.question ?? "No Question";
         currentAnswers = List<String>.from(startRoundPacket.answers);
         _answersReceivedThisRound = 0;
+
         notifyListeners();
       }
       else if(packet.type == PacketType.SUBMIT_ANSWER && mode == Mode.host){
@@ -221,14 +220,12 @@ Future<void> discoverGames() async {
           scores[pName] = (scores[pName] ?? 0) + 1; // + 1 point
         }
         else{
-          scores[pName] = scores[pName] ?? 0; // trägt spieler mit 0 punkte ein
+          scores[pName] = scores[pName] ?? 0;
         }
         _answersReceivedThisRound++;
 
         if(_answersReceivedThisRound >= clientCount){
-
           _answersReceivedThisRound = -999;
-
           if(currentRound < totalRounds){
             Future.delayed(const Duration(seconds: 2), () async {
               await showLeaderboardForXSeconds(5, false);
@@ -240,14 +237,77 @@ Future<void> discoverGames() async {
               final nextRoundPacket = StartRoundPacket(round: nextRound, rounds: totalRounds, timeLimit: answerTimeLimit, question: clientQuestion.question, answers: clientQuestion.answers);
 
               broadcastCommand(jsonEncode(nextRoundPacket.toJson()));
-
             });
-          }else{
+          }
+          else{
             print("Game is over");
             await showLeaderboardForXSeconds(20, true);
           }
         }
       }
+
+// ─── JOKER LOGIC ──────────────────────────────────────────────────────────────────────────────────────
+
+      else if(packet.type == PacketType.JOKER_REQUEST && mode == Mode.host){
+        final request = packet as JokerRequestPacket;
+        String pName = request.playerName;
+
+        usedJokers.putIfAbsent(pName, () => <JokerType>{});
+
+        if(usedJokers[pName]!.contains(request.jokerType)){
+          return;
+        }
+
+        usedJokers[pName]!.add(request.jokerType);
+
+        switch(request.jokerType){
+          case JokerType.FIFTY_FIFTY:
+            List<int> wrongIndices = [];
+            for(int i = 0; i < currentAnswers.length; i++){
+              if(i != _correctAnswerIndex){
+                wrongIndices.add(i);
+              }
+            }
+            wrongIndices.shuffle();
+
+            final response = JokerResponsePacket(
+              targetPlayerName: pName,
+              answersToHide: [wrongIndices[0], wrongIndices[1]],
+              jokerType: request.jokerType,
+            );
+
+            String responseJson = jsonEncode(response.toJson());
+            broadcastCommand(responseJson);
+
+            if (isPlaying) {
+              processNetworkMessage(responseJson);
+            }
+            break;
+        // add more Jokers here
+        }
+      }
+      else if(packet.type == PacketType.JOKER_RESPONSE && isPlaying){
+        final response = packet as JokerResponsePacket;
+
+        if(response.targetPlayerName == myName){
+          isWaitingForJoker = false;
+          myUsedJokers.add(response.jokerType);
+
+          if(response.jokerType == JokerType.FIFTY_FIFTY){
+            for(int index in response.answersToHide){
+              if(index >= 0 && index < currentAnswers.length){
+                currentAnswers[index] = "";
+              }
+            }
+          }
+          notifyListeners();
+        }
+      }
+
+// ─── END JOKER LOGIC ──────────────────────────────────────────────────────────────────────────────────
+
+// ─── LEADERBOARD LOGIC ────────────────────────────────────────────────────────────────────────────────
+
       else if(packet.type == PacketType.SHOW_LEADERBOARD){
         final showLeaderboardPacket = packet as ShowLeaderboardPacket;
 
@@ -261,17 +321,17 @@ Future<void> discoverGames() async {
         }
 
         leaderboard = LeaderboardWidget(
-            entries: showLeaderboardPacket.entries,
-            timeLimit: showLeaderboardPacket.time,
-            isHost: mode == Mode.host,
-            isFinal: showLeaderboardPacket.isFinalLeaderboard,
+          entries: showLeaderboardPacket.entries,
+          timeLimit: showLeaderboardPacket.time,
+          isHost: mode == Mode.host,
+          isFinal: showLeaderboardPacket.isFinalLeaderboard,
         );
         isPlaying = false;
         showLeaderboard = true;
         notifyListeners();
       }
     } catch(e){
-      print("Error Gameloop");
+      print("Error Gameloop: $e");
     }
   }
 
@@ -289,12 +349,17 @@ Future<void> discoverGames() async {
     ..sort((a, b) => b.score.compareTo(a.score));
  }
 
+// ─── END LEADERBOARD LOGIC ────────────────────────────────────────────────────────────────────────────
+// ─── PLAYER NAMES ─────────────────────────────────────────────────────────────────────────────────────
+
   void setNames(String newName){
     if(newName.trim().isNotEmpty) {
       myName = newName.trim();
       notifyListeners();
     }
   }
+
+// ── CANCEL, START, RESTART AND END GAME ───────────────────────────────────────────────────────────────
 
   void cancelJoin() {
     // Note: No await or async, if await is used here the code will
@@ -318,7 +383,8 @@ Future<void> discoverGames() async {
     if(mode != Mode.host) return;
 
     print("game restartig...");
-
+    usedJokers.clear();
+    isWaitingForJoker = false;
     scores.clear();
     _answersReceivedThisRound = 0;
     currentRound = 1;
@@ -335,7 +401,8 @@ Future<void> discoverGames() async {
         isFinalLeaderboard: true);
 
     broadcastCommand(jsonEncode(endPacket.toJson()));
-
+    usedJokers.clear();
+    isWaitingForJoker = false;
     _broadcast?.stop();
     _broadcast = null;
 
@@ -353,6 +420,32 @@ Future<void> discoverGames() async {
     discoveredServices.clear();
 
     notifyListeners();
+  }
+
+  Future<void> startGame(int rounds, int timeLimit) async{
+    if (mode != Mode.host){
+      return;
+    }
+
+    totalRounds = rounds;
+    currentRound = 1;
+    answerTimeLimit = timeLimit;
+
+    await sendQuestion();
+  }
+
+// ── JOKER ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  Set<JokerType> myUsedJokers = {};
+
+  void requestJoker(JokerType type){
+    if(myUsedJokers.contains(type) || isWaitingForJoker) return;
+
+    isWaitingForJoker = true;
+    notifyListeners();
+
+    final request = JokerRequestPacket(playerName: myName, jokerType: type);
+    sendToServer(jsonEncode(request.toJson()));
   }
 
 }

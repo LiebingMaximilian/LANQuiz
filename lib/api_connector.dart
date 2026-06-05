@@ -76,43 +76,43 @@ class Question { //question class with all available information
 //TODO: add parameter for categories and add api calls for that
 Future<Question> fetchQuestion() async { // fetches and returns questions.
 
-    final String url = 'https://opentdb.com/api.php?amount=1' +
-        (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
-    final response = await http.get(
-        Uri.parse(url)
-    );
+  final String url = 'https://opentdb.com/api.php?amount=1' +
+      (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
+  final response = await http.get(
+      Uri.parse(url)
+  );
 
-    if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
-      final data = QuestionData.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
-      switch (data.responseCode) {
-        case 0: //OK return questions
-          if(excCntr != 0) {
-            excCntr = 0; //resetting exception counter;
-          }
-          return data.question;
-        case 1: //no questions left
-          throw Exception("No Results, not enough questions left");
-        case 2: // invalid url
-          throw Exception("Invalid Parameter");
-        case 3:
-        //creates token when token is invalid
+  if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
+    final data = QuestionData.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+    switch (data.responseCode) {
+      case 0: //OK return questions
+        if(excCntr != 0) {
+          excCntr = 0; //resetting exception counter;
+        }
+        return data.question;
+      case 1: //no questions left
+        throw Exception("No Results, not enough questions left");
+      case 2: // invalid url
+        throw Exception("Invalid Parameter");
+      case 3:
+      //creates token when token is invalid
+        Token newToken = await createToken();
+        token = newToken.token;
+        return fetchQuestion();
+      case 4: // no questions available who havent been used - reset token or ask user if token should be reset
+        bool rst = await resetToken();
+        if(rst == true){
+          //TODO: Message to user that token has been reset succesfully
+          return fetchQuestion();
+        } else {
+          //create new token
           Token newToken = await createToken();
           token = newToken.token;
           return fetchQuestion();
-        case 4: // no questions available who havent been used - reset token or ask user if token should be reset
-          bool rst = await resetToken();
-          if(rst == true){
-            //TODO: Message to user that token has been reset succesfully
-            return fetchQuestion();
-          } else {
-            //create new token
-            Token newToken = await createToken();
-            token = newToken.token;
-            return fetchQuestion();
-          }
+        }
 
-        case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
+      case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
           excCntr++; //exception counter
           await Future.delayed(Duration(seconds: 5));
@@ -121,28 +121,28 @@ Future<Question> fetchQuestion() async { // fetches and returns questions.
           excCntr = 0;
           throw Exception("Unknown error, failed 3 times fetching questions");
         }
-        default: //unknown code
-          throw Exception("Unknown Error: code ${data.responseCode}");
-      }
-    } else if (response.statusCode == 429) { //handles too fast requests
-      if(excCntr < 3) {
-        excCntr++; //exception counter
-        await Future.delayed(Duration(seconds: 5));
-        return fetchQuestion();
-      } else {
-        excCntr = 0;
-        throw Exception("Unknown error, failed 3 times fetching questions");
-      }
-    } else {
-      throw Exception('http request failed'); //unknown error
+      default: //unknown code
+        throw Exception("Unknown Error: code ${data.responseCode}");
     }
+  } else if (response.statusCode == 429) { //handles too fast requests
+    if(excCntr < 3) {
+      excCntr++; //exception counter
+      await Future.delayed(Duration(seconds: 5));
+      return fetchQuestion();
+    } else {
+      excCntr = 0;
+      throw Exception("Unknown error, failed 3 times fetching questions");
+    }
+  } else {
+    throw Exception('http request failed'); //unknown error
   }
+}
 class Token{ //token class for handling tokens
   final String token;
   const Token({required this.token});
   factory Token.fromJson(Map<String, dynamic> json) {
     return Token(
-    token: json['token'],
+      token: json['token'],
     );
   }
 }

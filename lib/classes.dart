@@ -23,6 +23,8 @@ enum PacketType {
   START_ROUND,
   SHOW_LEADERBOARD,
   SUBMIT_ANSWER,
+  JOKER_REQUEST,
+  JOKER_RESPONSE,
 }
 
 class Packet {
@@ -43,6 +45,10 @@ class Packet {
         return ShowLeaderboardPacket.fromJson(json);
       case PacketType.SUBMIT_ANSWER:
         return SubmitAnswerPacket.fromJson(json);
+      case PacketType.JOKER_REQUEST:
+        return JokerRequestPacket.fromJson(json);
+      case PacketType.JOKER_RESPONSE:
+        return JokerResponsePacket.fromJson(json);
     }
   }
 }
@@ -53,6 +59,7 @@ class StartRoundPacket extends Packet {
   int timeLimit;
   String question;
   List<String> answers;
+
 
   StartRoundPacket({
     super.type = PacketType.START_ROUND,
@@ -138,5 +145,63 @@ class SubmitAnswerPacket extends Packet {
         answer: json['answer'] as String,
         playerName: json['playerName'] as String,
         timeTaken: json['timeTaken'] as int,
+      );
+}
+
+enum JokerType{
+  FIFTY_FIFTY,
+  // TODO: add more Joker
+}
+
+class JokerRequestPacket extends Packet{
+  String playerName;
+  JokerType jokerType;
+
+  JokerRequestPacket({
+    super.type = PacketType.JOKER_REQUEST,
+    required this.playerName,
+    required this.jokerType,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'playerName' : playerName,
+    'jokerType' : jokerType.name,
+  };
+
+  factory JokerRequestPacket.fromJson(Map<String,dynamic> json) =>
+      JokerRequestPacket(
+        playerName: json['playerName'] as String,
+        jokerType: JokerType.values.byName(json['jokerType'] as String),
+      );
+
+}
+
+class JokerResponsePacket extends Packet{
+  String targetPlayerName;
+  List<int> answersToHide;
+  JokerType jokerType;
+
+  JokerResponsePacket({
+    super.type = PacketType.JOKER_RESPONSE,
+    required this.targetPlayerName,
+    required this.answersToHide,
+    required this.jokerType,
+  });
+
+  @override
+  Map<String,dynamic> toJson() => {
+    ...super.toJson(),
+    'targetPlayerName' : targetPlayerName,
+    'answersToHide' : answersToHide,
+    'jokerType' : jokerType.name,
+  };
+
+  factory JokerResponsePacket.fromJson(Map<String,dynamic> json) =>
+      JokerResponsePacket(
+        targetPlayerName: json['targetPlayerName'] as String,
+        answersToHide: List<int>.from(json['answersToHide']),
+        jokerType: JokerType.values.byName(json['jokerType'] as String),
       );
 }
