@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lan_quiz/classes.dart';
 import 'package:lan_quiz/quiz_question_widget.dart';
 import 'package:provider/provider.dart';
@@ -46,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController ipController = TextEditingController(); // ← moved here
   bool _isDiscovering = false;
 
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void dispose() {
     ipController.dispose();
@@ -66,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     final gameState = Provider.of<GameState>(context);
     if (gameState.showLeaderboard) {
       return gameState.leaderboard;
@@ -85,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
       );
     }
+
 
     // ── 1. START SCREEN ──────────────────────────────────────────────────────
     if (gameState.mode == Mode.none) {
@@ -203,21 +208,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Expanded(child: Divider()),
                 ]),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: ipController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Host IP Address",
-                    hintText: "e.g. 192.168.1.50",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lan),
-                  ),
+
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: ipController,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters:[
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: "Host IP Address",
+                        hintText: "e.g. 192.168.1.50",
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.lan),
+                        ),
+                        validator: (value){
+                          if(value == null || value.isEmpty) {
+                            return 'Please enter an IP address';
+                          }
+                          final ipRegex = RegExp(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+
+                          if(!ipRegex.hasMatch(value)){
+                            return 'Please enter a valid IP address';
+                          }
+                          return null;
+                        }
+                      ),
+                    ],
+                  )
                 ),
+
+
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () {
-                    if (ipController.text.isNotEmpty) {
+                    if (_formKey.currentState!.validate()) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valid IP address! connecting...')),
+                      );
                       _stopDiscovery(gameState);
                       gameState.joinGame(ipController.text);
                     }
