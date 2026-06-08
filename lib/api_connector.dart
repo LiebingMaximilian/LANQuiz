@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 
-/*USAGE: Question varName = await fetchQuestion(amount of questions);
+/*USAGE: Question varName = await fetchQuestion(optional int category);
 varName.type for the type of question
 varName.question for the question string
 varName.correctAnswer for the correct Answer
@@ -73,10 +73,14 @@ class Question { //question class with all available information
   }
 }
 
-//TODO: add parameter for categories and add api calls for that
-Future<Question> fetchQuestion() async { // fetches and returns questions.
 
-    final String url = 'https://opentdb.com/api.php?amount=1' +
+
+//TODO: add parameter for categories and add api calls for that
+Future<Question> fetchQuestion([int? category]) async { // fetches and returns questions.
+  if(category != null) {
+    category = category + 9; //because categories in the api start with 9 (end with 32)
+}
+    final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
         (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
     final response = await http.get(
         Uri.parse(url)
