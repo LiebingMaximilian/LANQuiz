@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 
-/*USAGE: Question varName = await fetchQuestion(amount of questions);
+/*USAGE: Question varName = await fetchQuestion(optional int category);
 varName.type for the type of question
 varName.question for the question string
 varName.correctAnswer for the correct Answer
@@ -73,40 +73,34 @@ class Question { //question class with all available information
   }
 }
 
+
+
 //TODO: add parameter for categories and add api calls for that
-Future<Question> fetchQuestion() async { // fetches and returns questions.
+Future<Question> fetchQuestion([int? category]) async { // fetches and returns questions.
+  if(category != null) {
+    category = category + 9; //because categories in the api start with 9 (end with 32)
+}
+    final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
+        (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
+    final response = await http.get(
+        Uri.parse(url)
+    );
 
-  final String url = 'https://opentdb.com/api.php?amount=1' +
-      (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
-  final response = await http.get(
-      Uri.parse(url)
-  );
-
-  if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
-    final data = QuestionData.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>);
-    switch (data.responseCode) {
-      case 0: //OK return questions
-        if(excCntr != 0) {
-          excCntr = 0; //resetting exception counter;
-        }
-        return data.question;
-      case 1: //no questions left
-        throw Exception("No Results, not enough questions left");
-      case 2: // invalid url
-        throw Exception("Invalid Parameter");
-      case 3:
-      //creates token when token is invalid
-        Token newToken = await createToken();
-        token = newToken.token;
-        return fetchQuestion();
-      case 4: // no questions available who havent been used - reset token or ask user if token should be reset
-        bool rst = await resetToken();
-        if(rst == true){
-          //TODO: Message to user that token has been reset succesfully
-          return fetchQuestion();
-        } else {
-          //create new token
+    if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
+      final data = QuestionData.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+      switch (data.responseCode) {
+        case 0: //OK return questions
+          if(excCntr != 0) {
+            excCntr = 0; //resetting exception counter;
+          }
+          return data.question;
+        case 1: //no questions left
+          throw Exception("No Results, not enough questions left");
+        case 2: // invalid url
+          throw Exception("Invalid Parameter");
+        case 3:
+        //creates token when token is invalid
           Token newToken = await createToken();
           token = newToken.token;
           return fetchQuestion();

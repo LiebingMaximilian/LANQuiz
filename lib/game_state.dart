@@ -172,7 +172,7 @@ Future<void> discoverGames() async {
 // ── QUESTIONS ─────────────────────────────────────────────────────────────────────────────────────────
 
   Future<ClientQuestion> _getQuestionForRound() async {
-    Question question = await fetchQuestion(); 
+    Question question = await fetchQuestion();
     ClientQuestion clientQuestion = ClientQuestion.QuestionToClientQuestion(question);
     return clientQuestion;
   }
