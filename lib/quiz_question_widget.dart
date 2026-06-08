@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/classes.dart';
+import 'package:lan_quiz/game_state.dart';
+import 'package:provider/provider.dart';
 
 class QuizQuestionWidget extends StatefulWidget {
   final int currentRound;
@@ -108,6 +111,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
   @override
   Widget build(BuildContext context) {
+    final gameState = Provider.of<GameState>(context);
     return Scaffold(
       backgroundColor: const Color(0xFF4AA3D9),
       body: SafeArea(
@@ -159,7 +163,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                           widget.question,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 30,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -182,7 +186,10 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ),
                         itemBuilder: (context, index) {
                           final isSelected = _answer == widget.answers[index];
-
+                          // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
+                          if(widget.answers[index] == ""){
+                            return const SizedBox.shrink();
+                          }
                           return ElevatedButton(
                             onPressed: _answered
                                 ? null
@@ -205,7 +212,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                               widget.answers[index],
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -218,6 +225,30 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
               ),
 
               const SizedBox(height: 16),
+
+              // here add Buttons for Jokers
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: (gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) || gameState.isWaitingForJoker)
+                    ? null
+                    : () {
+                      gameState.requestJoker(JokerType.FIFTY_FIFTY);
+                    },
+
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: Text("50:50"),
+                  ),
+                  // here
+
+                ],
+              ),
+
+              const SizedBox(height: 4),
 
               // TIMER BAR
               ClipRRect(
