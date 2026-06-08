@@ -104,9 +104,19 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
           Token newToken = await createToken();
           token = newToken.token;
           return fetchQuestion();
-        }
+        case 4: // no questions available who havent been used - reset token or ask user if token should be reset
+          bool rst = await resetToken();
+          if(rst == true){
+            //TODO: Message to user that token has been reset succesfully
+            return fetchQuestion();
+          } else {
+            //create new token
+            Token newToken = await createToken();
+            token = newToken.token;
+            return fetchQuestion();
+          }
 
-      case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
+        case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
           excCntr++; //exception counter
           await Future.delayed(Duration(seconds: 5));
@@ -115,28 +125,28 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
           excCntr = 0;
           throw Exception("Unknown error, failed 3 times fetching questions");
         }
-      default: //unknown code
-        throw Exception("Unknown Error: code ${data.responseCode}");
-    }
-  } else if (response.statusCode == 429) { //handles too fast requests
-    if(excCntr < 3) {
-      excCntr++; //exception counter
-      await Future.delayed(Duration(seconds: 5));
-      return fetchQuestion();
+        default: //unknown code
+          throw Exception("Unknown Error: code ${data.responseCode}");
+      }
+    } else if (response.statusCode == 429) { //handles too fast requests
+      if(excCntr < 3) {
+        excCntr++; //exception counter
+        await Future.delayed(Duration(seconds: 5));
+        return fetchQuestion();
+      } else {
+        excCntr = 0;
+        throw Exception("Unknown error, failed 3 times fetching questions");
+      }
     } else {
-      excCntr = 0;
-      throw Exception("Unknown error, failed 3 times fetching questions");
+      throw Exception('http request failed'); //unknown error
     }
-  } else {
-    throw Exception('http request failed'); //unknown error
   }
-}
 class Token{ //token class for handling tokens
   final String token;
   const Token({required this.token});
   factory Token.fromJson(Map<String, dynamic> json) {
     return Token(
-      token: json['token'],
+    token: json['token'],
     );
   }
 }
