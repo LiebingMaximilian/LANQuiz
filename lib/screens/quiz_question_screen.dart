@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/classes.dart';
-import 'package:lan_quiz/game_state.dart';
+import 'package:lan_quiz/client_question.dart';
+import 'package:lan_quiz/enums/joker_type.dart';
+import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
 
 class QuizQuestionWidget extends StatefulWidget {
@@ -111,7 +112,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
   @override
   Widget build(BuildContext context) {
-    final gameState = Provider.of<GameState>(context);
+    final gameState = Provider.of<HostGameState>(context);
     return Scaffold(
       backgroundColor: const Color(0xFF4AA3D9),
       body: SafeArea(
@@ -233,7 +234,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     onPressed: (gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) || gameState.isWaitingForJoker)
                     ? null
                     : () {
-                      gameState.requestJoker(JokerType.FIFTY_FIFTY);
+                      gameState.useJoker(JokerType.FIFTY_FIFTY);
                     },
 
                     style: ElevatedButton.styleFrom(
