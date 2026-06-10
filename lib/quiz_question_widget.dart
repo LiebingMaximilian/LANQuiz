@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/classes.dart';
-import 'package:lan_quiz/base_game_state.dart';
-import 'package:lan_quiz/client_game_state.dart';
+import 'package:lan_quiz/host_game_state.dart';
 import 'package:provider/provider.dart';
 
 class QuizQuestionWidget extends StatefulWidget {
@@ -112,7 +111,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
   @override
   Widget build(BuildContext context) {
-    final gameState = Provider.of<ClientGameState>(context);
+    final gameState = Provider.of<HostGameState>(context);
     return Scaffold(
       backgroundColor: const Color(0xFF4AA3D9),
       body: SafeArea(

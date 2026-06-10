@@ -21,5 +21,4 @@ abstract class BaseGameState extends ChangeNotifier {
 
   // Shared interface that both components implement
   void processNetworkMessage(String msg);
-  void dispose();
 }

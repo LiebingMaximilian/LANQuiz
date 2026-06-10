@@ -17,9 +17,6 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
   Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
 
-  // The Host's loopback client instance acting as the local player
-  final ClientGameState localClient = ClientGameState();
-
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
     await hostGame();
@@ -36,14 +33,11 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
 
     localIp = await getLocalIpAddress();
     print("Hosting on ip: " + localIp!);
-    mode = Mode.host;
 
-    // Automatically join our own game using local loopback adapter
-    Future.delayed(const Duration(milliseconds: 500), () async {
-      await localClient.joinGame('127.0.0.1');
-      // Forward client internal updates to trigger UI updates on the Host phone
-      localClient.addListener(notifyListeners); 
-    });
+    //here we join our own game
+    await super.joinGame(localIp!);
+    //important to override it here, as we set it in joinGame
+    mode = Mode.host;
 
     notifyListeners();
   }
@@ -51,6 +45,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
   Future<void> startGame(int rounds, int timeLimit) async {
     if (mode != Mode.host) return;
 
+    scores[myName] = scores[myName] ?? 0;
     totalRounds = rounds;
     currentRound = 1;
     answerTimeLimit = timeLimit;
@@ -64,14 +59,13 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
     _answersReceivedThisRound = 0;
     
     final startGamePacket = StartRoundPacket(
-      round: currentRound++, 
+      round: currentRound, 
       rounds: totalRounds, 
       timeLimit: answerTimeLimit, 
       question: clientQuestion.question, 
       answers: clientQuestion.answers
     );
-
-    broadcastCommand(jsonEncode(startGamePacket.toJson()));
+    broadcastCommand(jsonEncode(startGamePacket. toJson()));
   }
 
   Future<ClientQuestion> _getQuestionForRound() async {
@@ -125,8 +119,6 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
     _broadcast = null;
 
     stopSocketServer();
-    localClient.removeListener(notifyListeners);
-    localClient.dispose();
 
     mode = Mode.none;
     scores.clear();
@@ -149,8 +141,6 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
   void broadcastCommand(String jsonMessage) {
     if (mode == Mode.host) {
       broadcastToAll(jsonMessage);
-      // Directly loop back network updates to host's own player logic
-      localClient.processNetworkMessage(jsonMessage);
     }
   }
 
@@ -163,6 +153,10 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
         await handleAnswer(packet);
       } else if (packet.type == PacketType.JOKER_REQUEST && mode == Mode.host) {
         handleJokerRequest(packet as JokerRequestPacket);
+      }
+      else {
+        //go to client 
+        super.processNetworkMessage(msg);
       }
     } catch (e) {
       print("Error Host Gameloop: $e");
@@ -186,6 +180,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
       if (currentRound < totalRounds) {
         Future.delayed(const Duration(seconds: 2), () async {
           await showLeaderboardForXSeconds(5, false);
+          currentRound++;
           await sendQuestion();
         });
       } else {
@@ -215,8 +210,6 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
 
   @override
   void dispose() {
-    localClient.removeListener(notifyListeners);
-    localClient.dispose();
     _broadcast?.stop();
     super.dispose();
   }
