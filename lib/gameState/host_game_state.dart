@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/base_game_state.dart';
-import 'package:lan_quiz/client_game_state.dart'; // Ensure correct import matching filename
-import 'package:lan_quiz/leaderboard.dart';
+import 'package:lan_quiz/gameState/base_game_state.dart';
+import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
+import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:web_socket_channel/io.dart';
-import 'host.dart';
-import 'main.dart';
+import '../host.dart';
+import '../main.dart';
 import 'dart:convert';
-import 'classes.dart';
-import 'api_connector.dart';
+import '../classes.dart';
+import '../api_connector.dart';
 
 class HostGameState extends ClientGameState { //extending clientgamestate means host is client and host in one, which is what we want
   int _correctAnswerIndex = 0;
@@ -38,6 +38,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
     await super.joinGame(localIp!);
     //important to override it here, as we set it in joinGame
     mode = Mode.host;
+    uiState = UiState.hostLobby;
 
     notifyListeners();
   }
@@ -120,9 +121,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
 
     stopSocketServer();
 
-    mode = Mode.none;
     scores.clear();
-
     notifyListeners();
   }
 

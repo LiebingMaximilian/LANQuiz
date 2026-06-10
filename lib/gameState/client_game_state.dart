@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/base_game_state.dart';
-import 'package:lan_quiz/leaderboard.dart';
+import 'package:lan_quiz/gameState/base_game_state.dart';
+import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:web_socket_channel/io.dart';
-import 'host.dart';
-import 'client.dart';
-import 'main.dart';
+import '../host.dart';
+import '../client.dart';
+import '../main.dart';
 import 'dart:convert';
-import 'classes.dart';
-import 'api_connector.dart';
+import '../classes.dart';
+import '../api_connector.dart';
 
 class ClientGameState extends BaseGameState {
   IOWebSocketChannel? _channel;
@@ -39,13 +39,13 @@ class ClientGameState extends BaseGameState {
         },
         onDone: () {
           print("Host disconnected connection terminated");
-          isPlaying = false;
-          showLeaderboard = false;
+          uiState = UiState.home;
           notifyListeners();
         },
       );
       
       mode = Mode.join;
+      uiState = UiState.waiting;
       print("Successfully connected to host at $ip");
       notifyListeners();
     } catch (e) {
@@ -121,8 +121,7 @@ class ClientGameState extends BaseGameState {
       isWaitingForJoker = false;
     }
     print("Started Game on this Device");
-    isPlaying = true;
-    showLeaderboard = false;
+    uiState = UiState.quiz;
     currentRound = startRoundPacket.round ?? 1;
     totalRounds = startRoundPacket.rounds ?? 10;
     answerTimeLimit = startRoundPacket.timeLimit ?? 20;
@@ -134,13 +133,13 @@ class ClientGameState extends BaseGameState {
 
   void displayLeaderboard(Packet packet) {
     final showLeaderboardPacket = packet as ShowLeaderboardPacket;
-    isPlaying = false;
-    showLeaderboard = true;
+    uiState = UiState.leaderboard;
     
     leaderboard = LeaderboardWidget(
       entries: showLeaderboardPacket.entries,
       timeLimit: showLeaderboardPacket.time,
       isFinal: showLeaderboardPacket.isFinalLeaderboard,
+      isHost: mode == Mode.host,
     );
     notifyListeners();
   }

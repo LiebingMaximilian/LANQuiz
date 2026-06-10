@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/classes.dart';
-import 'package:lan_quiz/host_game_state.dart';
+import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
 
 class QuizQuestionWidget extends StatefulWidget {

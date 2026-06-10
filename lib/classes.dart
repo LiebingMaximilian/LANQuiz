@@ -1,5 +1,5 @@
 import 'package:lan_quiz/api_connector.dart';
-import 'package:lan_quiz/leaderboard.dart';
+import 'package:lan_quiz/screens/leaderboard_screen.dart';
 
 class ClientQuestion{
   String question = "";
@@ -157,6 +157,14 @@ enum Mode{
   host,
   client,
   join
+}
+
+enum UiState {
+  home,
+  hostLobby,
+  waiting,
+  quiz,
+  leaderboard,
 }
 
 class JokerRequestPacket extends Packet{

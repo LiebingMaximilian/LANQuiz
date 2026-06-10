@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/base_game_state.dart';
-import 'package:lan_quiz/host_game_state.dart';
+import 'package:lan_quiz/gameState/base_game_state.dart';
+import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
 
 class LeaderboardWidget extends StatefulWidget {

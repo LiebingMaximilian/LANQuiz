@@ -39,7 +39,7 @@ Future<void> startSocketServer({required Function(String) onMessageReceived}) as
 // kill old server and clients before starting a new one
   await stopSocketServer();
 
-  var _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+  _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
   print("Server running...");
   _server!.transform(WebSocketTransformer()).listen((WebSocket clientSocket) {
     _connectedClients.add(clientSocket);
