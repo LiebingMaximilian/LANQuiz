@@ -3,7 +3,31 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+//platform specific IP-Lookup
 Future<String?> getLocalIpAddress() async {
+  if(Platform.isAndroid){
+    return await getAndroidIpAddress();
+  }
+  else if(Platform.isIOS){
+    return await getIosIpAddress();
+  }
+  return null;
+}
+
+Future<String?> getIosIpAddress() async{
+  try{
+    List<NetworkInterface> interfaces = await NetworkInterface.list(
+      includeLoopback: false,
+      type: InternetAddressType.IPv4);
+      final iosInterface = interfaces.firstWhere((interface) => interface.name.toLowerCase() == 'en0',);
+      return iosInterface.addresses.first.address;
+  } catch(e){
+    print("Failed to get ios IP : $e");
+    return null;
+  }
+}
+
+Future<String?> getAndroidIpAddress() async{
   try {
     for (var interface in await NetworkInterface.list()) {
       for (var addr in interface.addresses) {
