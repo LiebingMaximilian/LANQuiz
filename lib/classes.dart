@@ -152,6 +152,12 @@ enum JokerType{
   FIFTY_FIFTY,
   // TODO: add more Joker
 }
+enum Mode{
+  none,
+  host,
+  client,
+  join
+}
 
 class JokerRequestPacket extends Packet{
   String playerName;

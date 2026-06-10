@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/game_state.dart';
+import 'package:lan_quiz/base_game_state.dart';
+import 'package:lan_quiz/host_game_state.dart';
 import 'package:provider/provider.dart';
 
 class LeaderboardWidget extends StatefulWidget {
@@ -184,7 +185,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
                     Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            Provider.of<GameState>(context, listen: false).restartGame();
+                            Provider.of<HostGameState>(context, listen: false).restartGame();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
@@ -200,7 +201,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Provider.of<GameState>(context, listen: false).endGame();
+                          Provider.of<HostGameState>(context, listen: false).endGame();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
