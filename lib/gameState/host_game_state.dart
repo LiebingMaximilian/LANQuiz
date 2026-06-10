@@ -1,14 +1,24 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/enums/Mode.dart';
+import 'package:lan_quiz/enums/joker_type.dart';
+import 'package:lan_quiz/enums/packet_type.dart';
+import 'package:lan_quiz/enums/uiState.dart';
 import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
+import 'package:lan_quiz/packets/base_packet.dart';
+import 'package:lan_quiz/packets/joker_request_packet.dart';
+import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
+import 'package:lan_quiz/packets/start_round_packet.dart';
+import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:web_socket_channel/io.dart';
 import '../host.dart';
 import '../main.dart';
 import 'dart:convert';
-import '../classes.dart';
+import '../client_question.dart';
 import '../api_connector.dart';
 
 class HostGameState extends ClientGameState { //extending clientgamestate means host is client and host in one, which is what we want

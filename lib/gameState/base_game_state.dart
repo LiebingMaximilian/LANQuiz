@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/enums/Mode.dart';
+import 'package:lan_quiz/enums/joker_type.dart';
+import 'package:lan_quiz/enums/uiState.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:lan_quiz/main.dart';
-import '../classes.dart';
+import '../client_question.dart';
 
 abstract class BaseGameState extends ChangeNotifier {
   // Shared UI state variables

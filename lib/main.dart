@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lan_quiz/classes.dart';
+import 'package:lan_quiz/client_question.dart';
 import 'package:lan_quiz/screens/home_menu_screen.dart';
 import 'package:lan_quiz/screens/host_settings_screen.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
