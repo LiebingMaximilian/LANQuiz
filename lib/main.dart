@@ -71,220 +71,176 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final gameState = Provider.of<ClientGameState>(context);
-    
-    if (gameState.showLeaderboard) {
-      return gameState.leaderboard;
-    }
+  @override
+Widget build(BuildContext context) {
+  final gameState = Provider.of<ClientGameState>(context);
 
-    if (gameState.isPlaying) {
-      return QuizQuestionWidget(
-        currentRound: gameState.currentRound,
-        totalRounds: gameState.totalRounds,
-        question: parse(gameState.currentQuestion).body!.text,
-        timeLimit: gameState.answerTimeLimit,
-        answers: gameState.currentAnswers,
-        giveAnswer: (answer, timeTaken) {
-          print("answer $answer logged in $timeTaken seconds");
-          final answerPacket = SubmitAnswerPacket(
-              answer: answer, timeTaken: timeTaken, playerName: gameState.myName);
-          gameState.sendToServer(jsonEncode(answerPacket.toJson()));
-        },
-      );
-    }
-
-    // ── 1. START SCREEN ──────────────────────────────────────────────────────
-    if (gameState.mode == Mode.none) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("LAN Quiz")),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            child: Column(
-              children: [
-                const Icon(Icons.wifi_tethering, size: 80, color: Colors.blue),
-                const SizedBox(height: 30),
-
-                // ── Host button ──────────────────────────────────────────────
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Instantiating the HostGameState dynamically here.
-                    // Because HostGameState extends ClientGameState, it carries all client operations
-                    // plus your background server features!
-                    _hostGameState = HostGameState();
-                    _hostGameState!.hostGame();
-                    
-                    // Sync up core essential properties from the base state if necessary
-                    _hostGameState!.mode = Mode.host; 
-                    
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.dns),
-                  label: const Text("Host Game"),
-                  style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50)),
-                ),
-
-                const SizedBox(height: 40),
-                const Row(children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text("OR JOIN A GAME",
-                        style: TextStyle(color: Colors.grey, letterSpacing: 1.2)),
-                  ),
-                  Expanded(child: Divider()),
-                ]),
-                const SizedBox(height: 20),
-
-                // ── Discover / Stop button ───────────────────────────────────
-                ElevatedButton.icon(
-                  onPressed: _isDiscovering
-                      ? () => _stopDiscovery(gameState)
-                      : () => _startDiscovery(gameState),
-                  icon: _isDiscovering
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.search),
-                  label: Text(_isDiscovering ? "Stop Searching" : "Find Games"),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    backgroundColor: _isDiscovering ? Colors.orange : Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── Discovered games list ────────────────────────────────────
-                if (gameState.discoveredServices.isEmpty && _isDiscovering)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text("Looking for games on your network…",
-                        style: TextStyle(color: Colors.grey)),
-                  )
-                else if (gameState.discoveredServices.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Available Games",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      ...gameState.discoveredServices.map((service) {
-                        final resolved = service as ResolvedBonsoirService;
-                        final ip = resolved.host ?? "Unknown IP";
-                        final port = resolved.port;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            tileColor: Colors.blue.shade50,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            leading: const Icon(Icons.sports_esports, color: Colors.blue),
-                            title: Text(service.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text("$ip : $port",
-                                style: const TextStyle(color: Colors.blueGrey)),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              _stopDiscovery(gameState);
-                              gameState.joinGame(ip);
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-
-                // ── Manual IP entry — always visible ─────────────────────────
-                const SizedBox(height: 24),
-                const Row(children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text("OR ENTER IP MANUALLY",
-                        style: TextStyle(color: Colors.grey, letterSpacing: 1.2)),
-                  ),
-                  Expanded(child: Divider()),
-                ]),
-
-                Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                            controller: ipController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
-                            ],
-                            decoration: const InputDecoration(
-                              labelText: "Host IP Address",
-                              hintText: "e.g. 192.168.1.50",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.lan),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter an IP address';
-                              }
-                              final ipRegex = RegExp(
-                                  r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
-
-                              if (!ipRegex.hasMatch(value)) {
-                                return 'Please enter a valid IP address';
-                              }
-                              return null;
-                            }),
-                      ],
-                    )),
-
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Valid IP address! connecting...')),
-                      );
-                      _stopDiscovery(gameState);
-                      gameState.joinGame(ipController.text);
-                    }
-                  },
-                  icon: const Icon(Icons.login),
-                  label: const Text("Join Game"),
-                  style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // ── 2. Splitting of Host and Players ────────────────────────────────
-    // Check local tracker instance first to evaluate hosting mode safely
-    if (_hostGameState != null || gameState.mode == Mode.host) {
-      final effectiveHostState = _hostGameState ?? (gameState as HostGameState);
-      if (effectiveHostState.localIp == "10.0.2.16") {
-        effectiveHostState.localIp = "10.0.2.2";
-      }
-      
-      // We explicitly feed the subclass widget with its necessary type here.
-      return ChangeNotifierProvider<HostGameState>.value(
-        value: effectiveHostState,
-        child: HostSettingsScreen(gameState: effectiveHostState),
-      );
-    } else {
-      return const PlayerWaitingScreen();
-    }
+  if (gameState.showLeaderboard) {
+    return gameState.leaderboard;
   }
+
+  if (gameState.isPlaying) {
+    return QuizQuestionWidget(
+      currentRound: gameState.currentRound,
+      totalRounds: gameState.totalRounds,
+      question: parse(gameState.currentQuestion).body!.text,
+      timeLimit: gameState.answerTimeLimit,
+      answers: gameState.currentAnswers,
+      giveAnswer: (answer, timeTaken) {
+        final answerPacket = SubmitAnswerPacket(
+          answer: answer,
+          timeTaken: timeTaken,
+          playerName: gameState.myName,
+        );
+        gameState.sendToServer(jsonEncode(answerPacket.toJson()));
+      },
+    );
+  }
+
+  // ✅ FIX: HOST CHECK MUST COME BEFORE Mode.none
+  if (_hostGameState != null || gameState.mode == Mode.host) {
+    final host = _hostGameState ?? (gameState as HostGameState);
+
+    return ChangeNotifierProvider<HostGameState>.value(
+      value: host,
+      child: HostSettingsScreen(gameState: host),
+    );
+  }
+
+  if (gameState.mode == Mode.none) {
+  return Scaffold(
+    appBar: AppBar(title: const Text("LAN Quiz")),
+    body: Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          children: [
+            const Icon(Icons.wifi_tethering, size: 80, color: Colors.blue),
+            const SizedBox(height: 30),
+
+            // ── HOST BUTTON ─────────────────────────────
+            ElevatedButton.icon(
+              onPressed: () {
+                _hostGameState = HostGameState();
+                _hostGameState!.hostGame();
+
+                setState(() {
+                  gameState.mode = Mode.host; // IMPORTANT
+                });
+              },
+              icon: const Icon(Icons.dns),
+              label: const Text("Host Game"),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50)),
+            ),
+
+            const SizedBox(height: 40),
+
+            const Row(children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text("OR JOIN A GAME",
+                    style: TextStyle(color: Colors.grey)),
+              ),
+              Expanded(child: Divider()),
+            ]),
+
+            const SizedBox(height: 20),
+
+            // ── DISCOVER BUTTON ─────────────────────────
+            ElevatedButton.icon(
+              onPressed: _isDiscovering
+                  ? () => _stopDiscovery(gameState)
+                  : () => _startDiscovery(gameState),
+              icon: _isDiscovering
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.search),
+              label: Text(
+                  _isDiscovering ? "Stop Searching" : "Find Games"),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── MANUAL IP INPUT (RESTORED) ─────────────
+            const Row(children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text("OR ENTER IP MANUALLY",
+                    style: TextStyle(color: Colors.grey)),
+              ),
+              Expanded(child: Divider()),
+            ]),
+
+            const SizedBox(height: 12),
+
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: ipController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: "Host IP Address",
+                      hintText: "e.g. 192.168.1.50",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lan),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an IP address';
+                      }
+
+                      final ipRegex = RegExp(
+                          r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
+
+                      if (!ipRegex.hasMatch(value)) {
+                        return 'Please enter a valid IP address';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            ElevatedButton.icon(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  _stopDiscovery(gameState);
+                  gameState.joinGame(ipController.text);
+                }
+              },
+              icon: const Icon(Icons.login),
+              label: const Text("Join Game"),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50)),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+  return const PlayerWaitingScreen();
+}
 }
 
 class HostSettingsScreen extends StatefulWidget {
