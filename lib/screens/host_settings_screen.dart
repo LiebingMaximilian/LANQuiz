@@ -24,6 +24,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
           IconButton(
             icon: const Icon(Icons.close),
             onPressed: () {
+               Provider.of<HostGameState>(context, listen: false).endGame();
               // cancel game later, return to Homescreen
             },
           )
