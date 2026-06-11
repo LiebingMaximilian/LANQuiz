@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'package:html/parser.dart' show parse;
 
 /*USAGE: Question varName = await fetchQuestion(optional int category);
 varName.type for the type of question
@@ -24,6 +25,11 @@ PS                                                                //correct_answ
 String? token = "3b3"; //false token, let the code create a new one through the exception
 int excCntr = 0;
 
+//helper function to decode html special chars to usable special chars
+String decodeHtml(String htmlString) { 
+  var document = parse(htmlString);
+  return document.body?.text ?? htmlString; //if parsing fails, return the original string;
+}
 
 class QuestionData{  //because the api is staged we have to first handle responsecodes
   final int responseCode;
@@ -66,9 +72,9 @@ class Question { //question class with all available information
       type: json['type'],
       difficulty: json['difficulty'],
       category: json['category'],
-      question: json['question'],
-      correctAnswer: json['correct_answer'],
-      incorrectAnswers: List<String>.from(json['incorrect_answers']),
+      question: decodeHtml(json['question']),
+      correctAnswer: decodeHtml(json['correct_answer']),
+      incorrectAnswers: List<String>.from(json['incorrect_answers']).map(decodeHtml).toList(),
     );
   }
 }
