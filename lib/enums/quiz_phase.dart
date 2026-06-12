@@ -1,0 +1,4 @@
+enum QuizPhase {
+  answering,
+  showingResults,
+}
