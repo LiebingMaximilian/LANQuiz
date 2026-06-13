@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
-import 'package:flutter/material.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/uiState.dart';
-import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
@@ -14,18 +12,18 @@ import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
-import 'package:web_socket_channel/io.dart';
 import '../host.dart';
-import '../main.dart';
 import 'dart:convert';
 import '../client_question.dart';
 import '../api_connector.dart';
+import '../packets/show_correct_answer_packet.dart';
 
-class HostGameState extends ClientGameState { //extending clientgamestate means host is client and host in one, which is what we want
+class HostGameState extends ClientGameState { //extending client_game_state means host is client and host in one, which is what we want
   int _correctAnswerIndex = 0;
   int _answersReceivedThisRound = 0;
   Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
+  final Map<String,String> _answersThisRoundMap = {};
 
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
@@ -42,7 +40,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
     );
 
     localIp = await getLocalIpAddress();
-    print("Hosting on ip: " + localIp!);
+    print("Hosting on ip: ${localIp!}");
 
     //here we join our own game
     await super.joinGame(localIp!);
@@ -65,6 +63,7 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
   }
 
   Future<void> sendQuestion() async {
+    _answersThisRoundMap.clear();
     final ClientQuestion clientQuestion = await _getQuestionForRound();
     _correctAnswerIndex = clientQuestion.correctIndex;
     _answersReceivedThisRound = 0;
@@ -168,15 +167,17 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
         super.processNetworkMessage(msg);
       }
     } catch (e) {
-      print("Error Host Gameloop: $e");
+      print("Error Host Game-loop: $e");
     }
   }
 
   Future<void> handleAnswer(Packet packet) async {
     final submitAnswerPacket = packet as SubmitAnswerPacket;
-    String pName = submitAnswerPacket.playerName ?? "Unknown";
-    String answer = submitAnswerPacket.answer ?? "";
-    
+    String pName = submitAnswerPacket.playerName;
+    String answer = submitAnswerPacket.answer;
+
+    _answersThisRoundMap[pName] = answer;
+
     if (answer == currentAnswers[_correctAnswerIndex]) {
       scores[pName] = (scores[pName] ?? 0) + 1;
     } else {
@@ -186,17 +187,25 @@ class HostGameState extends ClientGameState { //extending clientgamestate means 
     
     if (_answersReceivedThisRound >= clientCount) {
       _answersReceivedThisRound = -999;
-      if (currentRound < totalRounds) {
-        Future.delayed(const Duration(seconds: 2), () async {
-          await showLeaderboardForXSeconds(5, false);
-          currentRound++;
-          await sendQuestion();
-        });
+
+      final answerPacket = ShowCorrectAnswerPacket(
+        correctAnswerIndex: _correctAnswerIndex,
+        playerAnswers: _answersThisRoundMap,
+      );
+
+      broadcastCommand(jsonEncode(answerPacket.toJson()));
+
+        Future.delayed(const Duration(seconds: 4), () async {
+          if (currentRound < totalRounds) {
+            await showLeaderboardForXSeconds(5, false);
+            currentRound++;
+            await sendQuestion();
       } else {
         print("Game is over");
         await showLeaderboardForXSeconds(20, true);
       }
-    }
+    });
+   }
   }
 
   Future<void> showLeaderboardForXSeconds(int seconds, bool isFinalLeaderboard) async {

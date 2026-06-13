@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
-import 'package:flutter/material.dart';
 import 'package:lan_quiz/enums/Mode.dart';
+import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/uiState.dart';
@@ -9,20 +9,16 @@ import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/show_correct_answer_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:web_socket_channel/io.dart';
-import '../host.dart';
 import '../client.dart';
-import '../main.dart';
 import 'dart:convert';
-import '../client_question.dart';
-import '../api_connector.dart';
+
 
 class ClientGameState extends BaseGameState {
-  IOWebSocketChannel? _channel;
-  StreamSubscription? _sub;
   BonsoirDiscovery? _discovery;
   List<BonsoirService> discoveredServices = [];
   StreamSubscription? _streamSubscription;
@@ -85,6 +81,8 @@ class ClientGameState extends BaseGameState {
         case PacketType.JOKER_RESPONSE:
           handleJokerResponse(packet);
           break;
+        case PacketType.CORRECT_ANSWER:
+          handleCorrectAnswer(packet);
         default:
           break;
       }
@@ -101,16 +99,22 @@ class ClientGameState extends BaseGameState {
       
       if (response.jokerType == JokerType.FIFTY_FIFTY) {
         final hideList = response.answersToHide;
-        if (hideList != null) {
           for (int index in hideList) {
             if (index >= 0 && index < currentAnswers.length) {
               currentAnswers[index] = "";
             }
           }
-        }
       }
       notifyListeners();
     }
+  }
+
+  void handleCorrectAnswer(Packet packet){
+    final p = packet as ShowCorrectAnswerPacket;
+    correctAnswerIndex = p.correctAnswerIndex;
+    playerAnswersThisRound = p.playerAnswers;
+    quizPhase = QuizPhase.showingResults;
+    notifyListeners();
   }
 
   void useJoker(JokerType jokerType) {
@@ -131,11 +135,14 @@ class ClientGameState extends BaseGameState {
     }
     print("Started Game on this Device");
     uiState = UiState.quiz;
-    currentRound = startRoundPacket.round ?? 1;
-    totalRounds = startRoundPacket.rounds ?? 10;
-    answerTimeLimit = startRoundPacket.timeLimit ?? 20;
-    currentQuestion = startRoundPacket.question ?? "No Question";
+    currentRound = startRoundPacket.round;
+    totalRounds = startRoundPacket.rounds;
+    answerTimeLimit = startRoundPacket.timeLimit;
+    currentQuestion = startRoundPacket.question;
     currentAnswers = List<String>.from(startRoundPacket.answers);
+    quizPhase = QuizPhase.answering;
+    correctAnswerIndex = -1;
+    playerAnswersThisRound.clear();
     
     notifyListeners();
   }
