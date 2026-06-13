@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/parser.dart';
@@ -226,9 +227,9 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                     children: [
                       TextFormField(
                         controller: ipController,
-                      keyboardType: Platform.isIOS 
-                      ? TextInputType.visiblePassword //normal keyboard for ios, otherwise no . for ip
-                      : TextInputType.numberWithOptions(decimal: true), //numberkeyboard wiht . 
+                      keyboardType: (!kIsWeb && Platform.isIOS)
+                      ? TextInputType.visiblePassword
+                      : const TextInputType.numberWithOptions(decimal: true), //numberkeyboard wiht . 
                       inputFormatters:[
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
                       ],
