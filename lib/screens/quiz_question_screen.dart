@@ -1,6 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/client_question.dart';
+import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
@@ -187,21 +186,46 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ),
                         itemBuilder: (context, index) {
                           final isSelected = _answer == widget.answers[index];
+                          final isCorrect = index == gameState.correctAnswerIndex;
+                          final isShowingResult = gameState.quizPhase == QuizPhase.showingResults;
+
                           // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
                           if(widget.answers[index] == ""){
                             return const SizedBox.shrink();
                           }
+
+                          Color bgColor = const Color(0xFF2F2F2F);
+                          if(isShowingResult){
+                            if(isCorrect){
+                              bgColor = Colors.green;
+                            }
+                            else if(isSelected){
+                              bgColor = Colors.red;
+                            }
+                            else{
+                              bgColor = Colors.grey.shade800;
+                            }
+                          }
+                          else if(isSelected){
+                            bgColor = Colors.orange;
+                          }
+
+                          List<String> playersWhoChoseThis = [];
+                          if(isShowingResult){
+                            gameState.playerAnswersThisRound.forEach((name,answerText){
+                              if(answerText == widget.answers[index]){
+                                playersWhoChoseThis.add(name);
+                              }
+                            });
+                          }
+
                           return ElevatedButton(
                             onPressed: _answered
                                 ? null
                                 : () => _handleAnswer(widget.answers[index]),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isSelected
-                                  ? Colors.orange
-                                  : const Color(0xFF2F2F2F),
-                              disabledBackgroundColor: isSelected
-                                  ? Colors.orange
-                                  : const Color(0xFF2F2F2F),
+                              backgroundColor: bgColor,
+                              disabledBackgroundColor: bgColor,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
@@ -209,13 +233,53 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                               elevation: 8,
                               padding: const EdgeInsets.all(16),
                             ),
-                            child: Text(
-                              widget.answers[index],
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Stack(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    widget.answers[index],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+
+                                if(isShowingResult && playersWhoChoseThis.isNotEmpty)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: playersWhoChoseThis.map((name) {
+                                        String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+                                        bool isMe = name == gameState.myName;
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(left: 4),
+                                          width: 24,
+                                          height: 24,
+                                          decoration: BoxDecoration(
+                                            color: isMe ? Colors.blue : Colors.purpleAccent,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              isMe ? "Du" : initial,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                              ],
                             ),
                           );
                         },
