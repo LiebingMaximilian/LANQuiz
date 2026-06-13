@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
+import 'package:lan_quiz/sound_manager.dart';
 import 'package:provider/provider.dart';
 
 class QuizQuestionWidget extends StatefulWidget {
@@ -198,6 +199,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                           if(isShowingResult){
                             if(isCorrect){
                               bgColor = Colors.green;
+                              if(isSelected) SoundManager.answerCorrect();// fire and forget works here, maybe not clean
                             }
                             else if(isSelected){
                               bgColor = Colors.red;
@@ -221,8 +223,11 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
                           return ElevatedButton(
                             onPressed: _answered
-                                ? null
-                                : () => _handleAnswer(widget.answers[index]),
+                            ? null
+                            : () async {
+                                 await SoundManager.answerSelected();
+                                _handleAnswer(widget.answers[index]);
+                              },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: bgColor,
                               disabledBackgroundColor: bgColor,
