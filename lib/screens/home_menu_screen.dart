@@ -15,6 +15,7 @@ import 'package:lan_quiz/screens/quiz_question_screen.dart';
 import 'package:lan_quiz/screens/global_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../gameState/host_game_state.dart';
+import 'player_statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -125,8 +126,15 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
     final gameState = context.watch<HostGameState>();
 
     return Scaffold(
-        appBar: AppBar(title: const Text("LAN Quiz"), 
-          actions: [IconButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GlobalSettingsScreen())), icon: Icon(Icons.settings))],
+        appBar: AppBar(leading: IconButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (context) => const PlayerStatisticScreen())), 
+            icon: Icon(Icons.stacked_bar_chart)), 
+            title: const Text("LAN Quiz"), 
+          actions: [IconButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (context) => const GlobalSettingsScreen())), 
+              icon: Icon(Icons.settings))],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40.0), 
             child: Container(
