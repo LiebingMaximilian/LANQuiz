@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
+import 'package:lan_quiz/screens/player_management_screen.dart';
+import 'package:lan_quiz/enums/category.dart';
 class HostSettingsScreen extends StatefulWidget{
   final HostGameState gameState;
   const HostSettingsScreen({super.key, required this.gameState});
@@ -10,6 +12,7 @@ class HostSettingsScreen extends StatefulWidget{
 }
 
 class _HostSettingsScreenState extends State<HostSettingsScreen> {
+  Category? selectedCategory;
   double _rounds = 10; // Presetting
   double _answertimelimit = 20;
   final hostNameController = TextEditingController();
@@ -19,6 +22,12 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.people),
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => PlayerManagementScreen()));
+          },
+        ),
         title: const Text("Game Settings"),
         actions: [
           IconButton(
@@ -77,6 +86,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                 });
               },
             ),
+
             const SizedBox(height: 40),
             Text(
               "Answering Time limit: ${_answertimelimit.toInt()} sec",
@@ -94,20 +104,27 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                 });
               },
             ),
-
-            const SizedBox(height: 15),
-
-            TextFormField(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter your Username',
-              ),
-              maxLength: 15,
-              controller: hostNameController,
-              onChanged: (text) {
-                Provider.of<HostGameState>(context, listen:false).setNames(text);
-              },
+            const SizedBox(height: 40),
+            Text("Category",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+              DropdownMenu<Category>(
+              initialSelection: Category.all,
+              //label: const Text("Select Category"),
+              onSelected: (Category? category){
+                setState(() {
+                  selectedCategory = category;
+                  widget.gameState.categoryId = category?.index;
+                });
+              },
+                dropdownMenuEntries: Category.values.map((category) => DropdownMenuEntry(
+                  value: category,
+                  label: category.name
+                )).toList(),
+            ),
+
+
+          
 
             const Spacer(),
 
