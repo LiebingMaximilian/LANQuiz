@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
@@ -14,7 +15,6 @@ import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/player_data.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
-import 'package:uuid/uuid.dart';
 import '../host.dart';
 import 'dart:convert';
 import '../client_question.dart';
@@ -38,8 +38,8 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     _broadcast = await startBroadcast();
     
     startSocketServer(
-      onMessageReceived: (incomingText) {
-        processNetworkMessage(incomingText);
+      onMessageReceived: (socket, data) {
+        preProcessNetworkMessage(socket, data);
       },
     );
 
@@ -165,10 +165,6 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         await handleAnswer(packet);
       } else if (packet.type == PacketType.JOKER_REQUEST && mode == Mode.host) {
         handleJokerRequest(packet as JokerRequestPacket);
-      } else if(packet.type == PacketType.REGISTER && mode == Mode.host){
-        final registerPacket = packet as RegisterPacket;
-        playerManager.addPlayer(registerPacket.name, registerPacket.id);
-        print("Player registered: ${registerPacket.name} with id ${registerPacket.id}");
       } else {
         //go to client 
         super.processNetworkMessage(msg);
@@ -237,5 +233,23 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   void dispose() {
     _broadcast?.stop();
     super.dispose();
+  }
+
+  void preProcessNetworkMessage(WebSocket socket, String data) {
+    final packet = Packet.fromJson(jsonDecode(data));
+    if (packet.type == PacketType.REGISTER) {
+      final registerPacket = RegisterPacket.fromJson(jsonDecode(data));
+      playerManager.addPlayer(registerPacket.name, registerPacket.id, socket);
+      registerPlayerSocket(registerPacket.id, socket);
+      print("Player registered: ${registerPacket.name} with id ${registerPacket.id}");
+      notifyListeners();
+    }
+    else {
+      processNetworkMessage(data);
+    }
+  }
+  void kickPlayer(String playerId) {
+    playerManager.kick(playerId);
+    notifyListeners();
   }
 }

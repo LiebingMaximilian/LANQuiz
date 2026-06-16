@@ -1,24 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
-import '../gameState/base_game_state.dart';
-import '../gameState/host_game_state.dart';
 
-
-class PlayerManagementScreen extends StatefulWidget {
+class PlayerManagementScreen extends StatelessWidget {
   const PlayerManagementScreen({super.key});
 
   @override
-  State<PlayerManagementScreen> createState() => _PlayerManagementScreenState();
-}
-
-class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Player Management")),
-      body: const Center(child: Text("Player Management Screen")),
-      //TODO: Add list of connected players with option to kick them, maybe also show their IPs and names
+    return Consumer<HostGameState>(
+      builder: (context, gameState, child) {
+        final players = gameState.playerManager.players.where((p) => p.id != gameState.myId).toList();
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Player Management"),
+          ),
+          body: players.isEmpty
+              ? const Center(
+                  child: Text("No players connected"),
+                )
+              : ListView.builder(
+                  itemCount: players.length,
+                  itemBuilder: (context, index) {
+                    final player = players[index];
+
+                    return ListTile(
+                      leading: const Icon(Icons.person),
+                      title: Text(player.name),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.person_remove,
+                          color: Colors.red,
+                        ),
+                        tooltip: "Kick player",
+                        onPressed: () {
+                          gameState.kickPlayer(player.id);
+                        },
+                      ),
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 }
