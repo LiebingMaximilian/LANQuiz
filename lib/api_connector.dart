@@ -71,7 +71,7 @@ class Question { //question class with all available information
     return Question(
       type: json['type'],
       difficulty: json['difficulty'],
-      category: json['category'],
+      category: decodeHtml(json['category']),
       question: decodeHtml(json['question']),
       correctAnswer: decodeHtml(json['correct_answer']),
       incorrectAnswers: List<String>.from(json['incorrect_answers']).map(decodeHtml).toList(),

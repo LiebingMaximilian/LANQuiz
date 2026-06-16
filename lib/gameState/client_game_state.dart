@@ -14,6 +14,7 @@ import 'package:lan_quiz/packets/show_correct_answer_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
+import 'package:lan_quiz/stats_service.dart';
 import 'package:web_socket_channel/io.dart';
 import '../client.dart';
 import 'dart:convert';
@@ -148,9 +149,12 @@ class ClientGameState extends BaseGameState {
     currentCategory = startRoundPacket.category;
     currentQuestion = startRoundPacket.question;
     currentAnswers = List<String>.from(startRoundPacket.answers);
+    statsController.newQuestion(startRoundPacket.category);
+    print(startRoundPacket.category);
     quizPhase = QuizPhase.answering;
     correctAnswerIndex = -1;
     playerAnswersThisRound.clear();
+    
     
     
     notifyListeners();

@@ -4,6 +4,7 @@ import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:lan_quiz/sound_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:lan_quiz/stats_service.dart';
 
 class QuizQuestionWidget extends StatefulWidget {
   final int currentRound;
@@ -51,9 +52,8 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   @override
   void initState() {
     super.initState();
-
+    QuizStatsController().init();
     _startTime = DateTime.now();
-
     _timerController = AnimationController(
       vsync: this,
       duration: Duration(seconds: widget.timeLimit),
@@ -106,7 +106,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
     final timeTaken =
         DateTime.now().difference(_startTime).inMilliseconds;
-
+    statsController.trackAnswertime(timeTaken);
     widget.giveAnswer(answer, timeTaken);
 
     setState(() {});
@@ -235,6 +235,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                               if(isCorrect){
                                 bgColor = Colors.green;
                                 if(isSelected) SoundManager.answerCorrect();// fire and forget works here, maybe not clean
+                                if(isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);};
                               }
                               else if(isSelected){
                                 bgColor = Colors.red;
@@ -263,6 +264,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                   await SoundManager.answerSelected();
                                   _handleAnswer(widget.answers[index]);
                                 },
+                              
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: bgColor,
                                 disabledBackgroundColor: bgColor,
@@ -339,6 +341,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     ? null
                     : () {
                       gameState.useJoker(JokerType.FIFTY_FIFTY);
+                      statsController.trackJokers(true);
                     },
 
                     style: ElevatedButton.styleFrom(
