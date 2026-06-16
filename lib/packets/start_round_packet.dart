@@ -7,6 +7,7 @@ class StartRoundPacket extends Packet {
   int timeLimit;
   String question;
   List<String> answers;
+  String category;
 
 
   StartRoundPacket({
@@ -16,6 +17,7 @@ class StartRoundPacket extends Packet {
     required this.timeLimit,
     required this.question,
     required this.answers,
+    required this.category,
   });
 
   @override
@@ -26,6 +28,7 @@ class StartRoundPacket extends Packet {
     'timeLimit': timeLimit,
     'question': question,
     'answers': answers,
+    'category' : category
   };
 
   factory StartRoundPacket.fromJson(Map<String, dynamic> json) =>
@@ -35,5 +38,7 @@ class StartRoundPacket extends Packet {
         timeLimit: json['timeLimit'] as int,
         question: json['question'] as String,
         answers: List<String>.from(json['answers']),
+        category: json['category'] as String,
       );
 }
+

@@ -145,11 +145,13 @@ class ClientGameState extends BaseGameState {
     currentRound = startRoundPacket.round;
     totalRounds = startRoundPacket.rounds;
     answerTimeLimit = startRoundPacket.timeLimit;
+    currentCategory = startRoundPacket.category;
     currentQuestion = startRoundPacket.question;
     currentAnswers = List<String>.from(startRoundPacket.answers);
     quizPhase = QuizPhase.answering;
     correctAnswerIndex = -1;
     playerAnswersThisRound.clear();
+    
     
     notifyListeners();
   }

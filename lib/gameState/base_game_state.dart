@@ -14,6 +14,7 @@ abstract class BaseGameState extends ChangeNotifier {
   int answerTimeLimit = 20;
   String currentQuestion = "";
   List<String> currentAnswers = [];
+  String currentCategory = "";
   String myName = "Spieler ${DateTime.now().millisecond % 1000}";
   String myId = Uuid().v4();
   PlayerManager playerManager = PlayerManager();

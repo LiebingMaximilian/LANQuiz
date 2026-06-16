@@ -76,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
           currentRound: gameState.currentRound,
           totalRounds: gameState.totalRounds,
           question: parse(gameState.currentQuestion).body!.text,
+          currentCategory: parse(gameState.currentCategory).body!.text,
           timeLimit: gameState.answerTimeLimit,
           answers: gameState.currentAnswers,
           giveAnswer: (answer, timeTaken){

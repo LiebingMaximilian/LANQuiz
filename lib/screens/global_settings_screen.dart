@@ -3,7 +3,6 @@ import "dart:async";
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../gameState/base_game_state.dart';
 import '../gameState/host_game_state.dart';
 
 
@@ -19,6 +18,7 @@ Future<void> setUsername(String username) async {
 
 Future<void> updateUsername(String username, BuildContext context) async {
   await setUsername(username);
+  if(!context.mounted) return;
   Provider.of<HostGameState>(context, listen: false).setNames(username);
 }
 

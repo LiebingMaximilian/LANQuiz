@@ -77,7 +77,8 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
       rounds: totalRounds, 
       timeLimit: answerTimeLimit, 
       question: clientQuestion.question, 
-      answers: clientQuestion.answers
+      answers: clientQuestion.answers,
+      category: clientQuestion.category,
     );
     broadcastCommand(jsonEncode(startGamePacket. toJson()));
   }
@@ -120,6 +121,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
   void endGame() {
     print("game ending...");
+    categoryId = null; //resetting category
 
     final endPacket = ShowLeaderboardPacket(
         time: 0,
