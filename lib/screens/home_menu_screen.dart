@@ -12,18 +12,38 @@ import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/screens/host_settings_screen.dart';
 import 'package:lan_quiz/screens/player_waiting_screen.dart';
 import 'package:lan_quiz/screens/quiz_question_screen.dart';
+import 'package:lan_quiz/screens/global_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../gameState/host_game_state.dart';
+import 'player_statistics_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+  
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController ipController = TextEditingController(); // ← moved here
   bool isDiscovering = false;
+
+  @override
+  void initState() {
+  super.initState();
+  
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final currentUsername = await getUsername();
+    if (currentUsername == null || currentUsername.isEmpty) {
+      usernameInputDialog(context, true);
+    } else { //fetching saved username and setting it in gameState if username already exists.
+      updateUsername(currentUsername, context);
+    }
+
+  });
+}
 
   final _formKey = GlobalKey<FormState>();
 
@@ -106,7 +126,41 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
     final gameState = context.watch<HostGameState>();
 
     return Scaffold(
-        appBar: AppBar(title: const Text("LAN Quiz")),
+        appBar: AppBar(leading: IconButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (context) => const PlayerStatisticScreen())), 
+            icon: Icon(Icons.stacked_bar_chart)), 
+            title: const Text("LAN Quiz"), 
+          actions: [IconButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (context) => const GlobalSettingsScreen())), 
+              icon: Icon(Icons.settings))],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(40.0), 
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+              alignment: Alignment.center, 
+              child: FutureBuilder<String?>(
+                future: getUsername(), 
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Text("");
+                  }
+                  final username = snapshot.data ?? '';
+                  return Text(
+                    username.isNotEmpty ? 'Welcome back, $username' : 'Welcome, Guest',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black, // Adjust color to fit your theme
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
         body: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
@@ -117,7 +171,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
 
                 // ── Host button ──────────────────────────────────────────────
                 ElevatedButton.icon(
-                  onPressed: () => gameState.hostGame(),
+                  onPressed: () => updateUsername(gameState.myName, context).then((_) => gameState.hostGame()),
                   icon: const Icon(Icons.dns),
                   label: const Text("Host Game"),
                   style: ElevatedButton.styleFrom(
@@ -200,6 +254,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                                 size: 16),
                             onTap: () {
                               stopDiscovery();
+                              updateUsername(gameState.myName, context);
                               gameState.joinGame(ip);
                             },
                           ),
@@ -263,6 +318,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valid IP address! connecting...')),
                       );
                       stopDiscovery();
+                      updateUsername(gameState.myName, context);
                       gameState.joinGame(ipController.text);
                     }
                   },

@@ -24,6 +24,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
   final Map<String,String> _answersThisRoundMap = {};
+  int? categoryId; //null is all categories 
 
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
@@ -79,7 +80,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   }
 
   Future<ClientQuestion> _getQuestionForRound() async {
-    Question question = await fetchQuestion();
+    Question question = await fetchQuestion(categoryId); //categoryID if it is 0 it is read as null bya api_connector
     ClientQuestion clientQuestion = ClientQuestion.QuestionToClientQuestion(question);
     return clientQuestion;
   }

@@ -167,27 +167,7 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
                   ),
                 const SizedBox(height: 35),
 
-                TextFormField(
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelStyle: TextStyle(color: Colors.white),
-                    floatingLabelStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    labelText: 'Enter your Username',
-                    enabledBorder: OutlineInputBorder(
-                      borderSide:  BorderSide(color: Colors.white54, width: 1.5),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white, width: 2.5),
-                    ),
-                  ),
-                  maxLength: 15,
-                  controller: playerNameController,
-                  style: const TextStyle(color: Colors.white),
-                  onChanged: (text) {
-                    Provider.of<HostGameState>(context, listen:false).setNames(text);
-                  },
-                ),
-
+                //TODO: Player list
                 const Spacer(flex: 3),
 
                 const Text(
