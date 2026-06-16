@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 enum PacketType {
   START_ROUND,
   SHOW_LEADERBOARD,
@@ -5,4 +7,5 @@ enum PacketType {
   JOKER_REQUEST,
   JOKER_RESPONSE,
   CORRECT_ANSWER,
+  REGISTER
 }

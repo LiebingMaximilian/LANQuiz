@@ -1,33 +1,35 @@
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
-import 'package:shelf_web_socket/shelf_web_socket.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
-//platform specific IP-Lookup
+// platform specific IP-Lookup
 Future<String?> getLocalIpAddress() async {
-  if(Platform.isAndroid){
+  if (Platform.isAndroid) {
     return await getAndroidIpAddress();
-  }
-  else if(Platform.isIOS){
+  } else if (Platform.isIOS) {
     return await getIosIpAddress();
   }
   return null;
 }
 
-Future<String?> getIosIpAddress() async{
-  try{
+Future<String?> getIosIpAddress() async {
+  try {
     List<NetworkInterface> interfaces = await NetworkInterface.list(
       includeLoopback: false,
-      type: InternetAddressType.IPv4);
-      final iosInterface = interfaces.firstWhere((interface) => interface.name.toLowerCase() == 'en0',);
-      return iosInterface.addresses.first.address;
-  } catch(e){
+      type: InternetAddressType.IPv4,
+    );
+
+    final iosInterface = interfaces.firstWhere(
+      (interface) => interface.name.toLowerCase() == 'en0',
+    );
+
+    return iosInterface.addresses.first.address;
+  } catch (e) {
     print("Failed to get ios IP : $e");
     return null;
   }
 }
 
-Future<String?> getAndroidIpAddress() async{
+Future<String?> getAndroidIpAddress() async {
   try {
     for (var interface in await NetworkInterface.list()) {
       for (var addr in interface.addresses) {
@@ -49,48 +51,115 @@ Future<BonsoirBroadcast> startBroadcast() async {
     type: "_lanquiz._tcp",
     port: 8080,
   );
+
   BonsoirBroadcast broadcast = BonsoirBroadcast(service: service);
+
   await broadcast.ready;
   await broadcast.start();
+
   print("Game is now visible in the network.");
-  return broadcast; // ← caller must store this
+
+  return broadcast;
 }
 
-List<WebSocket> _connectedClients = [];
-HttpServer? _server;
+class ClientConnection {
+  final WebSocket socket;
+  String? playerId;
 
-Future<void> startSocketServer({required Function(String) onMessageReceived}) async {
-// kill old server and clients before starting a new one
-  await stopSocketServer();
-
-  _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-  print("Server running...");
-  _server!.transform(WebSocketTransformer()).listen((WebSocket clientSocket) {
-    _connectedClients.add(clientSocket);
-    clientSocket.listen((data) {
-      onMessageReceived(data.toString());
-    }, onDone: () {
-      _connectedClients.remove(clientSocket);
-    });
+  ClientConnection({
+    required this.socket,
+    this.playerId,
   });
 }
 
-// method to free port 8080 and cleans up
+final List<ClientConnection> _connectedClients = [];
+
+HttpServer? _server;
+
+Future<void> startSocketServer({
+  required Function(WebSocket socket, String message) onMessageReceived,
+}) async {
+  await stopSocketServer();
+
+  _server = await HttpServer.bind(
+    InternetAddress.anyIPv4,
+    8080,
+  );
+
+  print("Server running...");
+
+  _server!.listen((HttpRequest request) async {
+    if (!WebSocketTransformer.isUpgradeRequest(request)) {
+      request.response.statusCode = HttpStatus.badRequest;
+      await request.response.close();
+      return;
+    }
+
+    final socket = await WebSocketTransformer.upgrade(request);
+
+    final connection = ClientConnection(socket: socket);
+
+    _connectedClients.add(connection);
+
+    socket.listen(
+      (data) {
+        onMessageReceived(socket, data.toString());
+      },
+      onDone: () {
+        _connectedClients.remove(connection);
+      },
+      onError: (_) {
+        _connectedClients.remove(connection);
+      },
+    );
+  });
+}
+
 Future<void> stopSocketServer() async {
-  if(_server != null){
+  if (_server != null) {
     await _server!.close(force: true);
     _server = null;
   }
-  for(var client in _connectedClients){
-    client.close();
+
+  for (final client in _connectedClients) {
+    await client.socket.close();
   }
+
   _connectedClients.clear();
+
   print("stopped server and port is freed");
 }
 
 void broadcastToAll(String jsonMessage) {
-  for (var player in _connectedClients) {
-    player.add(jsonMessage);
+  for (final client in _connectedClients) {
+    client.socket.add(jsonMessage);
+  }
+}
+
+void registerPlayerSocket(String playerId, WebSocket socket) {
+  final connection = _connectedClients.firstWhere(
+    (c) => c.socket == socket,
+  );
+
+  connection.playerId = playerId;
+}
+
+Future<void> kickPlayer(String playerId) async {
+  try {
+    final connection = _connectedClients.firstWhere(
+      (c) => c.playerId == playerId,
+    );
+
+    await connection.socket.close(
+      WebSocketStatus.normalClosure,
+      "Kicked by host",
+    );
+
+    _connectedClients.remove(connection);
+
+    print("Kicked player $playerId");
+  } catch (_) {
+    print("Player $playerId not found");
   }
 }
 

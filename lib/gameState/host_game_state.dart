@@ -1,16 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
-import 'package:lan_quiz/enums/uiState.dart';
+import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/register_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
+import 'package:lan_quiz/player_data.dart';
 import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import '../host.dart';
 import 'dart:convert';
@@ -35,8 +38,8 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     _broadcast = await startBroadcast();
     
     startSocketServer(
-      onMessageReceived: (incomingText) {
-        processNetworkMessage(incomingText);
+      onMessageReceived: (socket, data) {
+        preProcessNetworkMessage(socket, data);
       },
     );
 
@@ -55,7 +58,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Future<void> startGame(int rounds, int timeLimit) async {
     if (mode != Mode.host) return;
 
-    scores[myName] = scores[myName] ?? 0;
+    
     totalRounds = rounds;
     currentRound = 1;
     answerTimeLimit = timeLimit;
@@ -120,7 +123,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
     final endPacket = ShowLeaderboardPacket(
         time: 0,
-        entries: scoresToLeaderboard(scores),
+        entries: scoresToLeaderboard(playerManager.players),
         isFinalLeaderboard: true);
 
     broadcastCommand(jsonEncode(endPacket.toJson()));
@@ -131,7 +134,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
     stopSocketServer();
 
-    scores.clear();
+    playerManager.reset();
     notifyListeners();
   }
 
@@ -140,7 +143,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
     print("game restarting...");
     usedJokers.clear();
-    scores.clear();
+    playerManager.reset();
     _answersReceivedThisRound = 0;
     currentRound = 1;
 
@@ -162,8 +165,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         await handleAnswer(packet);
       } else if (packet.type == PacketType.JOKER_REQUEST && mode == Mode.host) {
         handleJokerRequest(packet as JokerRequestPacket);
-      }
-      else {
+      } else {
         //go to client 
         super.processNetworkMessage(msg);
       }
@@ -174,15 +176,15 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
   Future<void> handleAnswer(Packet packet) async {
     final submitAnswerPacket = packet as SubmitAnswerPacket;
-    String pName = submitAnswerPacket.playerName;
+    String pId = submitAnswerPacket.playerId;
     String answer = submitAnswerPacket.answer;
-
-    _answersThisRoundMap[pName] = answer;
+    if(!playerManager.hasPlayer(pId)){
+      throw Exception("Received answer from unregistered player with id $pId");
+    }
+    _answersThisRoundMap[playerManager.getNameById(pId)!] = answer;
 
     if (answer == currentAnswers[_correctAnswerIndex]) {
-      scores[pName] = (scores[pName] ?? 0) + 1;
-    } else {
-      scores[pName] = scores[pName] ?? 0;
+      playerManager.increaseScore(pId);
     }
     _answersReceivedThisRound++;
     
@@ -210,7 +212,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   }
 
   Future<void> showLeaderboardForXSeconds(int seconds, bool isFinalLeaderboard) async {
-    List<LeaderboardEntry> entries = scoresToLeaderboard(scores);
+    List<LeaderboardEntry> entries = scoresToLeaderboard(playerManager.players);
     ShowLeaderboardPacket showLeaderboardPacket = ShowLeaderboardPacket(
       time: seconds, 
       entries: entries, 
@@ -220,9 +222,9 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     await Future.delayed(Duration(seconds: seconds));
   }
 
-  List<LeaderboardEntry> scoresToLeaderboard(Map<String, dynamic> scores) {
-    return scores.entries
-        .map((e) => LeaderboardEntry(name: e.key, score: e.value as int))
+  List<LeaderboardEntry> scoresToLeaderboard(List<PlayerData> players) {
+    return players
+        .map((player) => LeaderboardEntry(name: player.name, score: player.score))
         .toList()
       ..sort((a, b) => b.score.compareTo(a.score));
   }
@@ -231,5 +233,23 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   void dispose() {
     _broadcast?.stop();
     super.dispose();
+  }
+
+  void preProcessNetworkMessage(WebSocket socket, String data) {
+    final packet = Packet.fromJson(jsonDecode(data));
+    if (packet.type == PacketType.REGISTER) {
+      final registerPacket = RegisterPacket.fromJson(jsonDecode(data));
+      playerManager.addPlayer(registerPacket.name, registerPacket.id, socket);
+      registerPlayerSocket(registerPacket.id, socket);
+      print("Player registered: ${registerPacket.name} with id ${registerPacket.id}");
+      notifyListeners();
+    }
+    else {
+      processNetworkMessage(data);
+    }
+  }
+  void kickPlayer(String playerId) {
+    playerManager.kick(playerId);
+    notifyListeners();
   }
 }

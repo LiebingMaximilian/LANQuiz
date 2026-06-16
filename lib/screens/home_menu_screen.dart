@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/parser.dart';
 import 'package:lan_quiz/client_question.dart';
-import 'package:lan_quiz/enums/uiState.dart';
+import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/screens/host_settings_screen.dart';
 import 'package:lan_quiz/screens/player_waiting_screen.dart';
@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           answers: gameState.currentAnswers,
           giveAnswer: (answer, timeTaken){
             print("answer $answer logged in $timeTaken seconds");
-            final answerPacket = SubmitAnswerPacket(answer: answer, timeTaken: timeTaken, playerName: gameState.myName);
+            final answerPacket = SubmitAnswerPacket(answer: answer, timeTaken: timeTaken, playerName: gameState.myName, playerId: gameState.myId);
             gameState.sendToServer(jsonEncode(answerPacket.toJson()));
           },
       ),
