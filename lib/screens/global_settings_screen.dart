@@ -20,6 +20,7 @@ Future<void> setUsername(String username) async {
 
 Future<void> updateUsername(String username, BuildContext context) async {
   await setUsername(username);
+  if(!context.mounted) return;
   Provider.of<HostGameState>(context, listen: false).setNames(username);
 }
 
