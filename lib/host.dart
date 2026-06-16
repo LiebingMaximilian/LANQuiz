@@ -78,6 +78,7 @@ HttpServer? _server;
 
 Future<void> startSocketServer({
   required Function(WebSocket socket, String message) onMessageReceived,
+  required Function(WebSocket socket) onClientDisconnected,
 }) async {
   await stopSocketServer();
 
@@ -107,9 +108,11 @@ Future<void> startSocketServer({
       },
       onDone: () {
         _connectedClients.remove(connection);
+        onClientDisconnected(socket);
       },
       onError: (_) {
         _connectedClients.remove(connection);
+        onClientDisconnected(socket);
       },
     );
   });
