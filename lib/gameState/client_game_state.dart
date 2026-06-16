@@ -118,7 +118,7 @@ class ClientGameState extends BaseGameState {
   }
 
   void useJoker(JokerType jokerType) {
-    if (myUsedJokers.contains(jokerType) || isWaitingForJoker) return;
+    if (myUsedJokers.contains(jokerType) || isWaitingForJoker || currentAnswers.length == 2) return;
 
     myUsedJokers.add(jokerType);
     isWaitingForJoker = true;
