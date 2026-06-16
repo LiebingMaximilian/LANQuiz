@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 enum Category{
   all,
   general_knowledge, //id 9

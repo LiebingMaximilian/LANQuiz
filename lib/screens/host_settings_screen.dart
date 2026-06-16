@@ -123,9 +123,6 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                 )).toList(),
             ),
 
-
-          
-
             const Spacer(),
 
             ElevatedButton(

@@ -4,11 +4,12 @@ import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
-import 'package:lan_quiz/enums/uiState.dart';
+import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/register_packet.dart';
 import 'package:lan_quiz/packets/show_correct_answer_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
@@ -52,6 +53,7 @@ class ClientGameState extends BaseGameState {
       mode = Mode.join;
       uiState = UiState.waiting;
       print("Successfully connected to host at $ip");
+      sendRegisterPacket();
       notifyListeners();
     } catch (e) {
       print("Unhandled connection error: $e");
@@ -89,6 +91,11 @@ class ClientGameState extends BaseGameState {
     } catch (e) {
       print("Failed parsing client incoming message thread: $e");
     }
+  }
+
+  void sendRegisterPacket() {
+    final registerPacket = RegisterPacket(name: myName, id: myId);
+    sendToServer(jsonEncode(registerPacket.toJson()));
   }
 
   void handleJokerResponse(Packet packet) {
@@ -238,7 +245,7 @@ class ClientGameState extends BaseGameState {
     discoveredServices.clear();
 
     mode = Mode.none;
-
+    uiState = UiState.home;
     print('Canceled');
     notifyListeners();
 

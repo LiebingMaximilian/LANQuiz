@@ -12,8 +12,6 @@ Future<String?> getUsername() async {
   return Future.value(prefs.getString('username') );
 }
 
-
-
 Future<void> setUsername(String username) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString('username', username);
@@ -23,7 +21,6 @@ Future<void> updateUsername(String username, BuildContext context) async {
   await setUsername(username);
   Provider.of<HostGameState>(context, listen: false).setNames(username);
 }
-
 
 
 class GlobalSettingsScreen extends StatefulWidget {

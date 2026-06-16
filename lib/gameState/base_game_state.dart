@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
-import 'package:lan_quiz/enums/uiState.dart';
+import 'package:lan_quiz/enums/ui_state.dart';
+import 'package:lan_quiz/player_data.dart';
+import 'package:lan_quiz/player_manager.dart';
+import 'package:uuid/uuid.dart';
 
 abstract class BaseGameState extends ChangeNotifier {
   // Shared UI state variables
@@ -12,7 +15,8 @@ abstract class BaseGameState extends ChangeNotifier {
   String currentQuestion = "";
   List<String> currentAnswers = [];
   String myName = "Spieler ${DateTime.now().millisecond % 1000}";
-  Map<String, dynamic> scores = {};
+  String myId = Uuid().v4();
+  PlayerManager playerManager = PlayerManager();
   Set<JokerType> myUsedJokers = {};
   bool isWaitingForJoker = false;
   Mode mode = Mode.none;
