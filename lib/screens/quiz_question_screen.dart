@@ -5,6 +5,7 @@ import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:lan_quiz/sound_manager.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:lan_quiz/stats_service.dart';
 
 
 class QuizQuestionWidget extends StatefulWidget {
@@ -56,9 +57,8 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   @override
   void initState() {
     super.initState();
-
+    QuizStatsController().init();
     _startTime = DateTime.now();
-
     _timerController = AnimationController(
       vsync: this,
       duration: Duration(seconds: widget.timeLimit),
@@ -113,7 +113,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
     final timeTaken =
         DateTime.now().difference(_startTime).inMilliseconds;
-
+    statsController.trackAnswertime(timeTaken);
     widget.giveAnswer(answer, timeTaken);
 
     setState(() {});
@@ -260,6 +260,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                 if (isCorrect) {
                                   bgColor = Colors.green;
                                   if (isSelected) SoundManager.answerCorrect();
+                                  if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);};
                                 } else if (isSelected) {
                                   bgColor = Colors.red;
                                 } else {
@@ -400,6 +401,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       gameState.useJoker(JokerType.FIFTY_FIFTY);
+                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(

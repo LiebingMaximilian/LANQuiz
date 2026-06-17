@@ -1,17 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:lan_quiz/client_question.dart';
 import 'package:lan_quiz/screens/home_menu_screen.dart';
-import 'package:lan_quiz/screens/host_settings_screen.dart';
-import 'package:lan_quiz/screens/leaderboard_screen.dart';
-import 'package:lan_quiz/screens/player_waiting_screen.dart';
-import 'package:lan_quiz/screens/quiz_question_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:bonsoir/bonsoir.dart';
 import 'gameState/host_game_state.dart';
-import 'dart:async';
-import 'package:html/parser.dart';
 
 
 void main() {

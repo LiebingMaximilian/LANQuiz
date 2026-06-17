@@ -13,6 +13,7 @@ import 'package:lan_quiz/screens/host_settings_screen.dart';
 import 'package:lan_quiz/screens/player_waiting_screen.dart';
 import 'package:lan_quiz/screens/quiz_question_screen.dart';
 import 'package:lan_quiz/screens/global_settings_screen.dart';
+import 'package:lan_quiz/stats_service.dart';
 import 'package:provider/provider.dart';
 import '../gameState/host_game_state.dart';
 import 'player_statistics_screen.dart';
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
   });
+  statsController.init();
 }
 
   final _formKey = GlobalKey<FormState>();
