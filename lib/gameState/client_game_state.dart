@@ -18,6 +18,8 @@ import 'package:web_socket_channel/io.dart';
 import '../client.dart';
 import 'dart:convert';
 
+import '../packets/update_player_list_packet.dart';
+
 
 class ClientGameState extends BaseGameState {
   BonsoirDiscovery? _discovery;
@@ -26,6 +28,7 @@ class ClientGameState extends BaseGameState {
   IOWebSocketChannel? channel;
   Set<JokerType> myUsedJokers = {};
   late LeaderboardWidget leaderboard;
+  bool isInkBlotted = false;
 
   Future<void> joinGame(String ip) async {
     try {
@@ -85,6 +88,10 @@ class ClientGameState extends BaseGameState {
           break;
         case PacketType.CORRECT_ANSWER:
           handleCorrectAnswer(packet);
+          break;
+        case PacketType.UPDATE_PLAYER_LIST:
+          handlePlayerListUpdate(packet);
+          break;
         default:
           break;
       }
@@ -98,19 +105,65 @@ class ClientGameState extends BaseGameState {
     sendToServer(jsonEncode(registerPacket.toJson()));
   }
 
+  void handlePlayerListUpdate(Packet packet){
+    final p = packet as UpdatePlayerListPacket;
+    playerManager.players.clear();
+    for(var playerMap in p.playerList){
+      playerManager.addPlayer(playerMap['name']!, playerMap['id']!);
+    }
+    notifyListeners();
+  }
+
   void handleJokerResponse(Packet packet) {
     final response = packet as JokerResponsePacket;
-    if (response.targetPlayerName == myName) {
-      myUsedJokers.add(response.jokerType);
+
+    print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, GOT JOKER RESPONSE");
+
+
+    // has host confirmed my request?
+    if(response.sourcePlayerName == myName){
       isWaitingForJoker = false;
-      
-      if (response.jokerType == JokerType.FIFTY_FIFTY) {
-        final hideList = response.answersToHide;
-          for (int index in hideList) {
-            if (index >= 0 && index < currentAnswers.length) {
-              currentAnswers[index] = "";
+      notifyListeners();
+    }
+
+    // am i the target of the joker?
+    if (response.targetPlayerId == myId) {
+
+      print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I AM THE TARGET, USE JOKER");
+      if(response.sourcePlayerName == myName) {
+        myUsedJokers.add(response.jokerType);
+      }
+
+      switch(response.jokerType) {
+
+        case JokerType.FIFTY_FIFTY:
+          final hideList = response.answersToHide;
+          if(hideList != null){
+            for (int index in hideList) {
+              if (index >= 0 && index < currentAnswers.length) {
+                currentAnswers[index] = "";
+              }
             }
           }
+          break;
+
+        case JokerType.SECOND_CHANCE:
+          isWaitingForJoker = false;
+          unlockAnswer = true;
+          break;
+
+        case JokerType.DOUBLE_DOWN:
+          // nothing to do visually on client side
+          break;
+
+        case JokerType.INK_SPLASH:
+          print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I GOT INK SPLASH");
+          isInkBlotted = true;
+          notifyListeners();
+          break;
+
+        default:
+          throw Exception('Joker does not exist');
       }
       notifyListeners();
     }
@@ -124,13 +177,13 @@ class ClientGameState extends BaseGameState {
     notifyListeners();
   }
 
-  void useJoker(JokerType jokerType) {
+  void useJoker(JokerType jokerType, {String targetId = ""}) {
     if (myUsedJokers.contains(jokerType) || isWaitingForJoker || currentAnswers.length == 2) return;
 
     myUsedJokers.add(jokerType);
     isWaitingForJoker = true;
 
-    final request = JokerRequestPacket(playerName: myName, jokerType: jokerType);
+    final request = JokerRequestPacket(playerName: myName, jokerType: jokerType, targetId: targetId);
     sendToServer(jsonEncode(request.toJson()));
   }
 
@@ -151,6 +204,7 @@ class ClientGameState extends BaseGameState {
     quizPhase = QuizPhase.answering;
     correctAnswerIndex = -1;
     playerAnswersThisRound.clear();
+    isInkBlotted = false;
     
     
     notifyListeners();

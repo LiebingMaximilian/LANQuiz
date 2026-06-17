@@ -7,6 +7,7 @@ import 'package:lan_quiz/packets/show_correct_answer_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
+import 'package:lan_quiz/packets/update_player_list_packet.dart';
 
 class Packet {
   PacketType type;
@@ -34,6 +35,8 @@ class Packet {
         return ShowCorrectAnswerPacket.fromJson(json);
       case PacketType.REGISTER:
         return RegisterPacket.fromJson(json);
+      case PacketType.UPDATE_PLAYER_LIST:
+        return UpdatePlayerListPacket.fromJson(json);
     }
   }
 }

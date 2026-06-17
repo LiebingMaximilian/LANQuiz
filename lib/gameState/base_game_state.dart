@@ -26,6 +26,7 @@ abstract class BaseGameState extends ChangeNotifier {
   QuizPhase quizPhase = QuizPhase.answering;
   int correctAnswerIndex = -1;
   Map<String,String> playerAnswersThisRound = {}; // saves player name -> Answer
+  bool unlockAnswer = false;
 
   // Shared interface that both components implement
   void processNetworkMessage(String msg);

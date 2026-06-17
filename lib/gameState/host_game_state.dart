@@ -20,6 +20,7 @@ import 'dart:convert';
 import '../client_question.dart';
 import '../api_connector.dart';
 import '../packets/show_correct_answer_packet.dart';
+import '../packets/update_player_list_packet.dart';
 
 class HostGameState extends ClientGameState { //extending client_game_state means host is client and host in one, which is what we want
   int _correctAnswerIndex = 0;
@@ -27,7 +28,9 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
   final Map<String,String> _answersThisRoundMap = {};
-  int? categoryId; //null is all categories 
+  int? categoryId; //null is all categories
+  final Set<String> doubleDownActive = {};
+  final Set<String> secondChanceActive = {};
 
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
@@ -41,6 +44,10 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
       onMessageReceived: (socket, data) {
         preProcessNetworkMessage(socket, data);
       },
+      onClientDisconnected: (socket) {
+        playerManager.removePlayerBySocket(socket);
+        notifyListeners();
+      }
     );
 
     localIp = await getLocalIpAddress();
@@ -68,6 +75,8 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
   Future<void> sendQuestion() async {
     _answersThisRoundMap.clear();
+    doubleDownActive.clear();
+    secondChanceActive.clear();
     final ClientQuestion clientQuestion = await _getQuestionForRound();
     _correctAnswerIndex = clientQuestion.correctIndex;
     _answersReceivedThisRound = 0;
@@ -92,6 +101,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   void handleJokerRequest(Packet packet) {
     final request = packet as JokerRequestPacket;
     String pName = request.playerName;
+    String pId = playerManager.players.firstWhere((p) => p.name == pName).id;
     
     usedJokers.putIfAbsent(pName, () => <JokerType>{});
     if (usedJokers[pName]!.contains(request.jokerType)) return;
@@ -108,15 +118,53 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         }
         wrongIndices.shuffle();
     
-        final response = JokerResponsePacket(
-          targetPlayerName: pName,
+        final responseFF = JokerResponsePacket(
+          targetPlayerId: pId,
+          sourcePlayerName: pName,
           answersToHide: [wrongIndices[0], wrongIndices[1]],
           jokerType: request.jokerType,
         );
-    
-        broadcastCommand(jsonEncode(response.toJson()));
+        broadcastCommand(jsonEncode(responseFF.toJson()));
+        break;
+
+      case JokerType.DOUBLE_DOWN:
+        doubleDownActive.add(pId);
+        final responseDD = JokerResponsePacket(
+          targetPlayerId: pId,
+          sourcePlayerName: pName,
+          jokerType: JokerType.DOUBLE_DOWN,
+        );
+        broadcastCommand(jsonEncode(responseDD.toJson()));
+        break;
+
+      case JokerType.SECOND_CHANCE:
+        secondChanceActive.add(pId);
+        final responseSC = JokerResponsePacket(
+          targetPlayerId: pId,
+          sourcePlayerName: pName,
+          jokerType: JokerType.SECOND_CHANCE,
+        );
+        broadcastCommand(jsonEncode(responseSC.toJson()));
+        break;
+
+      case JokerType.INK_SPLASH:
+        String targetId = request.targetId;
+        print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
+        final responseIS = JokerResponsePacket(
+            targetPlayerId: targetId,
+            sourcePlayerName: pName,
+            answersToHide: [],  // sending an empty list here
+            jokerType: JokerType.INK_SPLASH,
+        );
+        broadcastCommand(jsonEncode(responseIS.toJson()));
         break;
     }
+  }
+
+  void broadcastPlayerList(){
+    final list = playerManager.players.map((p) => {"name": p.name, "id": p.id}).toList();
+    final updatePacket = UpdatePlayerListPacket(playerList: list, type: PacketType.UPDATE_PLAYER_LIST);
+    broadcastCommand(jsonEncode(updatePacket.toJson()));
   }
 
   void endGame() {
@@ -145,7 +193,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
     print("game restarting...");
     usedJokers.clear();
-    playerManager.reset();
+    playerManager.resetScores();
     _answersReceivedThisRound = 0;
     currentRound = 1;
 
@@ -180,14 +228,36 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     final submitAnswerPacket = packet as SubmitAnswerPacket;
     String pId = submitAnswerPacket.playerId;
     String answer = submitAnswerPacket.answer;
+    String pName = playerManager.getNameById(pId) ?? "Unknown";
     if(!playerManager.hasPlayer(pId)){
       throw Exception("Received answer from unregistered player with id $pId");
     }
     _answersThisRoundMap[playerManager.getNameById(pId)!] = answer;
 
+    if(answer != currentAnswers[_correctAnswerIndex] && secondChanceActive.contains(pId)){
+      secondChanceActive.remove(pId);
+
+      final response = JokerResponsePacket(
+        targetPlayerId: pId,
+        jokerType: JokerType.SECOND_CHANCE,
+      );
+      broadcastCommand(jsonEncode(response.toJson()));
+
+      return;
+    }
+
+    _answersThisRoundMap[pName] = answer;
+    bool hasDoubleDown = doubleDownActive.contains(pId);
+
     if (answer == currentAnswers[_correctAnswerIndex]) {
       playerManager.increaseScore(pId);
+      if (hasDoubleDown) {
+        playerManager.increaseScore(pId);
+      }
+    } else if(hasDoubleDown){
+      playerManager.decreaseScore(pId);
     }
+
     _answersReceivedThisRound++;
     
     if (_answersReceivedThisRound >= clientCount) {
@@ -241,17 +311,20 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     final packet = Packet.fromJson(jsonDecode(data));
     if (packet.type == PacketType.REGISTER) {
       final registerPacket = RegisterPacket.fromJson(jsonDecode(data));
-      playerManager.addPlayer(registerPacket.name, registerPacket.id, socket);
+      playerManager.addPlayer(registerPacket.name, registerPacket.id, socket: socket);
       registerPlayerSocket(registerPacket.id, socket);
       print("Player registered: ${registerPacket.name} with id ${registerPacket.id}");
+      broadcastPlayerList();
       notifyListeners();
     }
     else {
       processNetworkMessage(data);
     }
   }
+
   void kickPlayer(String playerId) {
     playerManager.kick(playerId);
+    broadcastPlayerList();
     notifyListeners();
   }
 }
