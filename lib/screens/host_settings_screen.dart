@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/api_connector.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
 import 'package:lan_quiz/screens/player_management_screen.dart';
-import 'package:lan_quiz/enums/category.dart';
 class HostSettingsScreen extends StatefulWidget{
   final HostGameState gameState;
   const HostSettingsScreen({super.key, required this.gameState});
@@ -12,7 +12,15 @@ class HostSettingsScreen extends StatefulWidget{
 }
 
 class _HostSettingsScreenState extends State<HostSettingsScreen> {
-  Category? selectedCategory;
+  late Future<List<TriviaCategory>> _categoriesFuture;
+  TriviaCategory? selectedCategory;
+  @override
+  void initState() {
+    super.initState();
+    _categoriesFuture = fetchCategories();
+  }
+
+
   double _rounds = 10; // Presetting
   double _answertimelimit = 20;
   final hostNameController = TextEditingController();
@@ -108,20 +116,40 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
             Text("Category",
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-              DropdownMenu<Category>(
-              initialSelection: Category.all,
-              //label: const Text("Select Category"),
-              onSelected: (Category? category){
-                setState(() {
-                  selectedCategory = category;
-                  widget.gameState.categoryId = category?.index;
-                });
-              },
-                dropdownMenuEntries: Category.values.map((category) => DropdownMenuEntry(
-                  value: category,
-                  label: category.name
-                )).toList(),
-            ),
+              FutureBuilder<List<TriviaCategory>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 56, 
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return const Text("Error loading categories");
+                  }
+
+                  final categoryList = snapshot.data!;
+
+                  return DropdownMenu<TriviaCategory>(
+                    initialSelection: categoryList.first, 
+                    onSelected: (TriviaCategory? category) {
+                      setState(() {
+                        selectedCategory = category;
+                        
+                        widget.gameState.categoryId = category?.id; 
+                      });
+                    },
+                    dropdownMenuEntries: categoryList.map((category) {
+                      return DropdownMenuEntry<TriviaCategory>(
+                        value: category,
+                        label: category.name,
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
 
             const Spacer(),
 

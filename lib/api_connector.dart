@@ -83,9 +83,7 @@ class Question { //question class with all available information
 
 //TODO: add parameter for categories and add api calls for that
 Future<Question> fetchQuestion([int? category]) async { // fetches and returns questions.
-  if(category != null && category != 0) {
-    category = category + 8; //because categories in the api start with 9 (end with 32)
-}
+
     final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
         (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
     final response = await http.get(
@@ -177,4 +175,38 @@ Future<bool> resetToken() async{
   }
   //api call failed
   return false; //easy option, alternative, retry 3 times
+}
+
+class TriviaCategory {
+  final int? id;
+  final String name;
+
+  // Standard Constructor
+  TriviaCategory({required this.id, required this.name});
+
+  // Factory Constructor to convert JSON map into this Class
+  factory TriviaCategory.fromJson(Map<String, dynamic> json) {
+    return TriviaCategory(
+      id: json['id'] as int?,
+      name: json['name'] as String,
+    );
+  }
+}
+
+
+Future<List<TriviaCategory>> fetchCategories() async{
+  final String url = "https://opentdb.com/api_category.php";
+  final response = await http.get(Uri.parse(url)); //fetch categories
+
+  if (response.statusCode == 200) { //check responsecode
+    final Map<String, dynamic> decodedData = jsonDecode(response.body);
+   final List rawList = decodedData["trivia_categories"] as List;
+    List<TriviaCategory> categories = rawList
+        .map((json) => TriviaCategory.fromJson(json as Map<String, dynamic>))
+        .toList(); //putting categories in map for better usage
+        categories.insert(0, TriviaCategory(id: null, name: "All")); //insert all category option
+    return categories;
+  } else {
+    throw Exception('Failed to load categories');
+  }
 }

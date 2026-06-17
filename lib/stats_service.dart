@@ -1,6 +1,5 @@
 
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -22,12 +21,10 @@ class QuizStatsController{
   void newQuestion(String category){
 
     _currentCategory = category;
-    print("Tracked new question");
-    print(cachedStats.globalTotalQuestions);
     cachedStats.globalTotalQuestions = (cachedStats.globalTotalQuestions ?? 0)+1;
-    print(cachedStats.globalTotalQuestions);
     CategoryStats cat = cachedStats.categoryStats.putIfAbsent(category, ()=> CategoryStats());
     cat.totalQuestions = (cat.totalQuestions ?? 0) +1;
+    print("Tracked new question");
   }
 
   void trackAnswertime(int timeInS){
@@ -68,7 +65,7 @@ class QuizStatsController{
 
     final data = await SharedPreferences.getInstance();
     await data.setString('user_stats', jsonEncode(cachedStats.toJson()));
-    print("saved data");
+    print("saved statistics");
   }
 
 
