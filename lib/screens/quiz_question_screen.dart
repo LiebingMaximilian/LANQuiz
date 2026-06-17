@@ -3,8 +3,10 @@ import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:lan_quiz/sound_manager.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:lan_quiz/stats_service.dart';
+
 
 class QuizQuestionWidget extends StatefulWidget {
   final int currentRound;
@@ -14,6 +16,7 @@ class QuizQuestionWidget extends StatefulWidget {
 
   final String question;
   final List<String> answers;
+
 
   /// Called when an answer is given.
   ///
@@ -41,13 +44,15 @@ class QuizQuestionWidget extends StatefulWidget {
 }
 
 class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _timerController;
 
   bool _answered = false;
   String? _answer;
 
   late DateTime _startTime;
+
+  late AnimationController _lottieController;
 
   @override
   void initState() {
@@ -73,6 +78,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
         setState(() {});
       }
     });
+    _lottieController = AnimationController(vsync: this);
   }
 
   @override
@@ -93,6 +99,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   @override
   void dispose() {
     _timerController.dispose();
+    _lottieController.dispose();
     super.dispose();
   }
 
@@ -115,6 +122,21 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   @override
   Widget build(BuildContext context) {
     final gameState = Provider.of<HostGameState>(context);
+
+    print("UI REBUILD (${gameState.myName}): INK BLOTTED ist AKTUELL -> ${gameState.isInkBlotted}");
+
+    if (gameState.unlockAnswer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _answered = false;
+            _answer = null;
+            gameState.unlockAnswer = false;
+          });
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF4AA3D9),
       body: SafeArea(
@@ -175,23 +197,25 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                             ),
                           ),
                         ),
-                        Positioned( //category addon on top of the question widget
-                          top: 0, 
+                        Positioned(
+                          //category addon on top of the question widget
+                          top: 0,
                           left: 0,
                           right: 0,
                           child: FractionalTranslation(
-                            translation: const Offset(0.0, -0.5), 
+                            translation: const Offset(0.0, -0.5),
                             child: Align(
                               alignment: Alignment.topCenter,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2F2F2F), 
+                                  color: const Color(0xFF2F2F2F),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   widget.currentCategory,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -204,155 +228,230 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ),
                       ],
                     ),
-                      
 
-                      const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                      // ANSWERS
-                      Expanded(
-                        child: GridView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: widget.answers.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: 1.8,
-                          ),
-                          itemBuilder: (context, index) {
-                            final isSelected = _answer == widget.answers[index];
-                            final isCorrect = index == gameState.correctAnswerIndex;
-                            final isShowingResult = gameState.quizPhase == QuizPhase.showingResults;
+                    // ANSWERS
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: widget.answers.length,
+                            gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childAspectRatio: 1.8,
+                            ),
+                            itemBuilder: (context, index) {
+                              final isSelected = _answer == widget.answers[index];
+                              final isCorrect = index == gameState.correctAnswerIndex;
+                              final isShowingResult = gameState.quizPhase == QuizPhase.showingResults;
 
-                            // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
-                            if(widget.answers[index] == ""){
-                              return const SizedBox.shrink();
-                            }
-
-                            Color bgColor = const Color(0xFF2F2F2F);
-                            if(isShowingResult){
-                              if(isCorrect){
-                                bgColor = Colors.green;
-                                if(isSelected) SoundManager.answerCorrect();// fire and forget works here, maybe not clean
-                                if(isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);};
+                              // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
+                              if (widget.answers[index] == "") {
+                                return const SizedBox.shrink();
                               }
-                              else if(isSelected){
-                                bgColor = Colors.red;
-                              }
-                              else{
-                                bgColor = Colors.grey.shade800;
-                              }
-                            }
-                            else if(isSelected){
-                              bgColor = Colors.orange;
-                            }
 
-                            List<String> playersWhoChoseThis = [];
-                            if(isShowingResult){
-                              gameState.playerAnswersThisRound.forEach((name,answerText){
-                                if(answerText == widget.answers[index]){
-                                  playersWhoChoseThis.add(name);
+                              Color bgColor = const Color(0xFF2F2F2F);
+                              if (isShowingResult) {
+                                if (isCorrect) {
+                                  bgColor = Colors.green;
+                                  if (isSelected) SoundManager.answerCorrect();
+                                  if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);};
+                                } else if (isSelected) {
+                                  bgColor = Colors.red;
+                                } else {
+                                  bgColor = Colors.grey.shade800;
                                 }
-                              });
-                            }
+                              } else if (isSelected) {
+                                bgColor = Colors.orange;
+                              }
 
-                            return ElevatedButton(
-                              onPressed: _answered
-                              ? null
-                              : () async {
+                              List<String> playersWhoChoseThis = [];
+                              if (isShowingResult) {
+                                gameState.playerAnswersThisRound
+                                    .forEach((name, answerText) {
+                                  if (answerText == widget.answers[index]) {
+                                    playersWhoChoseThis.add(name);
+                                  }
+                                });
+                              }
+
+                              return ElevatedButton(
+                                onPressed: _answered
+                                    ? null
+                                    : () async {
                                   await SoundManager.answerSelected();
                                   _handleAnswer(widget.answers[index]);
                                 },
-                              
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: bgColor,
-                                disabledBackgroundColor: bgColor,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: bgColor,
+                                  disabledBackgroundColor: bgColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  elevation: 8,
+                                  padding: const EdgeInsets.all(16),
                                 ),
-                                elevation: 8,
-                                padding: const EdgeInsets.all(16),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Text(
-                                      widget.answers[index],
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
+                                child: Stack(
+                                  children: [
+                                    Center(
+                                      child: Text(
+                                        widget.answers[index],
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    if (isShowingResult &&
+                                        playersWhoChoseThis.isNotEmpty)
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: playersWhoChoseThis.map((name) {
+                                            String initial = name.isNotEmpty
+                                                ? name[0].toUpperCase()
+                                                : "?";
+                                            bool isMe = name == gameState.myName;
 
-                                  if(isShowingResult && playersWhoChoseThis.isNotEmpty)
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: playersWhoChoseThis.map((name) {
-                                          String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
-                                          bool isMe = name == gameState.myName;
-
-                                          return Container(
-                                            margin: const EdgeInsets.only(left: 4),
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              color: isMe ? Colors.blue : Colors.purpleAccent,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.white, width: 1.5),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                isMe ? "Du" : initial,
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                            return Container(
+                                              margin: const EdgeInsets.only(left: 4),
+                                              width: 24,
+                                              height: 24,
+                                              decoration: BoxDecoration(
+                                                color: isMe
+                                                    ? Colors.blue
+                                                    : Colors.purpleAccent,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  isMe ? "Du" : initial,
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          );
-                                        }).toList(),
+                                            );
+                                          }).toList(),
+                                        ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          if (gameState.isInkBlotted)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: Lottie.asset(
+                                  'assets/InkSplatterAnimation.json',
+                                  controller: _lottieController,
+                                  repeat: false,
+                                  fit: BoxFit.cover,
+                                  animate: true,
+                                  onLoaded: (composition) {
+                                    _lottieController.duration = composition.duration;
+
+                                    _lottieController.forward(from: 0).then((_) {
+                                      Future.delayed(const Duration(seconds: 1), () {
+                                        if (mounted && gameState.isInkBlotted) {
+                                          _lottieController.reverse().then((_) {
+                                            if (mounted) {
+                                              gameState.isInkBlotted = false;
+                                              setState(() {});
+                                            }
+                                          });
+                                        }
+                                      });
+                                    });
+                                  },
+                                ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // here add Buttons for Jokers
+              // Joker Buttons
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
-                    onPressed: (gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) || gameState.isWaitingForJoker)
-                    ? null
-                    : () {
+                    onPressed: (gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) ||
+                        gameState.isWaitingForJoker)
+                        ? null
+                        : () {
                       gameState.useJoker(JokerType.FIFTY_FIFTY);
                       statsController.trackJokers(true);
                     },
-
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    child: Text("50:50"),
+                    child: const Text("50:50"),
                   ),
-                  // here
-
+                  ElevatedButton(
+                    onPressed: (gameState.myUsedJokers.contains(JokerType.DOUBLE_DOWN) ||
+                        gameState.isWaitingForJoker)
+                        ? null
+                        : () {
+                      gameState.useJoker(JokerType.DOUBLE_DOWN);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text("2xOR-1"),
+                  ),
+                  ElevatedButton(
+                    onPressed: (gameState.myUsedJokers.contains(JokerType.SECOND_CHANCE) ||
+                        gameState.isWaitingForJoker)
+                        ? null
+                        : () {
+                      gameState.useJoker(JokerType.SECOND_CHANCE);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Icon(Icons.replay),
+                  ),
+                  ElevatedButton(
+                    onPressed: (gameState.myUsedJokers.contains(JokerType.INK_SPLASH) ||
+                        gameState.isWaitingForJoker)
+                        ? null
+                        : () {
+                      _showPaintSplashDialog(context, gameState);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Icon(Icons.water_drop),
+                  ),
                 ],
               ),
 
@@ -378,6 +477,39 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
           ),
         ),
       ),
+    );
+  }
+
+  void _showPaintSplashDialog(BuildContext context, dynamic gameState) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("Who do you want to attack?"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: gameState.playerManager.players.length,
+              itemBuilder: (context, index) {
+                final player = gameState.playerManager.players[index];
+                print("DEBUG: Players: ${player.name} - ${player.id}");
+
+                if (player.id == gameState.myId) return const SizedBox.shrink();
+
+                return ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(player.name),
+                  onTap: () {
+                    gameState.useJoker(JokerType.INK_SPLASH, targetId: player.id);
+                    Navigator.pop(ctx);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
