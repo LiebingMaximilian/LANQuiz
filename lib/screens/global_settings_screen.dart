@@ -1,6 +1,7 @@
 import "dart:async";
 
 import 'package:flutter/material.dart';
+import 'package:lan_quiz/sound_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../gameState/host_game_state.dart';
@@ -75,6 +76,14 @@ class _GlobalSettingsScreenState extends State<GlobalSettingsScreen>{
                     },
                     child: const Text("Change"),
                   ),
+                ),
+                ListTile(
+                  title: Text("Sound Effects:"),
+                  trailing: Switch(value: isSoudEnabled, onChanged: (bool value) {
+                    setState(() {
+                      isSoudEnabled = value;
+                    });
+                  }),
                 ),
               ],
             )

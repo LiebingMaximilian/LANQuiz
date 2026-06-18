@@ -17,6 +17,7 @@ import 'package:lan_quiz/stats_service.dart';
 import 'package:provider/provider.dart';
 import '../gameState/host_game_state.dart';
 import 'player_statistics_screen.dart';
+import 'package:lan_quiz/sound_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,9 +43,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } else { //fetching saved username and setting it in gameState if username already exists.
       updateUsername(currentUsername, context);
     }
+    audioInit();
+    statsController.init();
 
   });
-  statsController.init();
 }
 
   final _formKey = GlobalKey<FormState>();
