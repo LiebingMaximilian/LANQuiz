@@ -39,6 +39,7 @@ class _GlobalSettingsScreenState extends State<GlobalSettingsScreen>{
   Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text("Global Settings"),
       ),
       body: Padding( //adding current Username with button change to get textfield, 

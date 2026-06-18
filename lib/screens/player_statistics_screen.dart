@@ -27,7 +27,9 @@ class _PlayerStatisticScreenState extends State<PlayerStatisticScreen> {
     int correct = statsData.globalCorrectAnswers ?? 0;
     double globalAccuracy = answered > 0 ? (correct / answered) * 100 : 0.0;
     return Scaffold(
-      appBar: AppBar(title: const Text("Statistics")),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("Statistics")),
       body:SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
