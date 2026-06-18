@@ -12,12 +12,14 @@ class HostSettingsScreen extends StatefulWidget{
 }
 
 class _HostSettingsScreenState extends State<HostSettingsScreen> {
+  bool onStartPressed = false; //to prevent double pressing
   late Future<List<TriviaCategory>> _categoriesFuture;
   TriviaCategory? selectedCategory;
   @override
   void initState() {
     super.initState();
     _categoriesFuture = fetchCategories();
+    onStartPressed = false; //set it to false when screen loads
   }
 
 
@@ -156,10 +158,12 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
             ElevatedButton(
                 onPressed: (){
                   // Start Game
+                  if(onStartPressed == false){
+                    onStartPressed = true; //so only one press gets registered
                   print("Starting Game with ${_rounds.toInt()} rounds");
                   print("Staring Game with answering time: ${_answertimelimit.toInt()}");
-
                   widget.gameState.startGame(_rounds.toInt(), _answertimelimit.toInt());
+                  }
 
                 },
               style: ElevatedButton.styleFrom(

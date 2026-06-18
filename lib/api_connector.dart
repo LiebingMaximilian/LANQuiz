@@ -24,11 +24,29 @@ PS                                                                //correct_answ
 
 String? token = "3b3"; //false token, let the code create a new one through the exception
 int excCntr = 0;
+int secondsLeft = 0;
+bool timerRunning = false;
 
 //helper function to decode html special chars to usable special chars
 String decodeHtml(String htmlString) { 
   var document = parse(htmlString);
   return document.body?.text ?? htmlString; //if parsing fails, return the original string;
+}
+
+Future <void> timerAPI() async{
+  if(timerRunning == true) return;
+  if(secondsLeft == 0 && timerRunning == false){
+    secondsLeft = 5;
+    timerRunning = true;
+  }
+  while(secondsLeft > 0){
+   await Future.delayed(Duration(seconds: 1));
+   secondsLeft--;
+  }
+   if(secondsLeft == 0 && timerRunning == true){
+      timerRunning = false;
+   }
+
 }
 
 class QuestionData{  //because the api is staged we have to first handle responsecodes
@@ -89,6 +107,7 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
     final response = await http.get(
         Uri.parse(url)
     );
+    timerAPI(); //starting api timer
 
     if (response.statusCode == 200) { //if server returned 200 OK response, parse json to map
       final data = QuestionData.fromJson(
@@ -123,7 +142,7 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
         case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
           excCntr++; //exception counter
-          await Future.delayed(Duration(seconds: 5));
+          await Future.delayed(Duration(seconds: secondsLeft));
           return fetchQuestion();
         } else {
           excCntr = 0;
@@ -135,7 +154,7 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
     } else if (response.statusCode == 429) { //handles too fast requests
       if(excCntr < 3) {
         excCntr++; //exception counter
-        await Future.delayed(Duration(seconds: 5));
+        await Future.delayed(Duration(seconds: secondsLeft));
         return fetchQuestion();
       } else {
         excCntr = 0;
