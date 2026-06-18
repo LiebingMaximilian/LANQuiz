@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+bool isSoudEnabled = true;
 
  void audioInit() async{
    await AudioPlayer.global.setAudioContext(AudioContext(
@@ -17,11 +18,13 @@ import 'package:audioplayers/audioplayers.dart';
 
 class SoundManager {
   static final AudioPlayer _player = AudioPlayer();
-  
+
   static Future<void> answerSelected() async {
+    if(!isSoudEnabled){return;}
     await _player.play(AssetSource('sounds/answerSelected.mp3'));
   }
   static Future<void> answerCorrect() async {
+    if(!isSoudEnabled){return;}
     await _player.play(AssetSource('sounds/correctAnswer.mp3'));
   }
 }
