@@ -131,7 +131,9 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
     final gameState = context.watch<HostGameState>();
 
     return Scaffold(
-        appBar: AppBar(leading: IconButton(
+        appBar: AppBar(
+          centerTitle: true,
+          leading: IconButton(
           onPressed: () => Navigator.push(context, MaterialPageRoute(
             builder: (context) => const PlayerStatisticScreen())), 
             icon: Icon(Icons.stacked_bar_chart)), 

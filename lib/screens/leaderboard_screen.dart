@@ -42,6 +42,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
   late List<Animation<double>> _barAnimations;
   late AnimationController _timerController;
   late List<LeaderboardEntry> _sorted;
+  bool buttonActivated = false;
 
   @override
   void initState() {
@@ -89,6 +90,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
 
     _timerController.addStatusListener((status) {
   });
+    buttonActivated = false;
   }
 
   @override
@@ -185,7 +187,10 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
                     Expanded(
                         child: ElevatedButton(
                           onPressed: () {
+                            if(buttonActivated == false){
+                              buttonActivated = true; //edge detection, only press button once
                             Provider.of<HostGameState>(context, listen: false).restartGame();
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,

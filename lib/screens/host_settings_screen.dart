@@ -32,6 +32,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.people),
           onPressed: () {
