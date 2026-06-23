@@ -25,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
+bool isHostButtonPressed = false;
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController ipController = TextEditingController(); // ← moved here
@@ -177,7 +177,14 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
 
                 // ── Host button ──────────────────────────────────────────────
                 ElevatedButton.icon(
-                  onPressed: () => updateUsername(gameState.myName, context).then((_) => gameState.hostGame()),
+                  onPressed: () {
+                    if(isHostButtonPressed == false){
+                      isHostButtonPressed = true;
+                      if(isDiscovering == true){
+                        stopDiscovery(); //to fix host being able to join own game after exiting host settings screen
+                        }
+                    updateUsername(gameState.myName, context).then((_) => gameState.hostGame());
+                    }},
                   icon: const Icon(Icons.dns),
                   label: const Text("Host Game"),
                   style: ElevatedButton.styleFrom(
