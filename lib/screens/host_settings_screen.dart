@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/api_connector.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
+import 'package:lan_quiz/screens/home_menu_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:lan_quiz/screens/player_management_screen.dart';
 class HostSettingsScreen extends StatefulWidget{
@@ -20,6 +21,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
     super.initState();
     _categoriesFuture = fetchCategories();
     onStartPressed = false; //set it to false when screen loads
+    isHostButtonPressed = false;
   }
 
 

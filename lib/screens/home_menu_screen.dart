@@ -93,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   }
 }
+bool isHostButtonPressed = false;
 
 class HomeMenuScreen extends StatefulWidget {
   const HomeMenuScreen({super.key});
@@ -177,7 +178,11 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
 
                 // ── Host button ──────────────────────────────────────────────
                 ElevatedButton.icon(
-                  onPressed: () => updateUsername(gameState.myName, context).then((_) => gameState.hostGame()),
+                  onPressed: () {
+                    if(isHostButtonPressed == false){
+                      isHostButtonPressed = true;
+                    updateUsername(gameState.myName, context).then((_) => gameState.hostGame());
+                    }},
                   icon: const Icon(Icons.dns),
                   label: const Text("Host Game"),
                   style: ElevatedButton.styleFrom(
