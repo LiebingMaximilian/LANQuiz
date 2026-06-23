@@ -22,6 +22,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
     _categoriesFuture = fetchCategories();
     onStartPressed = false; //set it to false when screen loads
     isHostButtonPressed = false;
+    updateToken();
   }
 
 
@@ -142,8 +143,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                     onSelected: (TriviaCategory? category) {
                       setState(() {
                         selectedCategory = category;
-                        
-                        widget.gameState.categoryId = category?.id; 
+                        globalCategory = category?.id;
                       });
                     },
                     dropdownMenuEntries: categoryList.map((category) {
@@ -155,6 +155,17 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                   );
                 },
               ),
+              const SizedBox(height: 40),
+              ListTile(
+                  title: Text("Token"),
+                  subtitle: Text("No duplicate questions"),
+                  trailing: Switch(value: isTokenEnabled, onChanged: (bool value) {
+                    setState(() {
+                      isTokenEnabled = value;
+                    });
+                    updateToken();
+                  }),
+                ),
 
             const Spacer(),
 
