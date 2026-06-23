@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
 
@@ -49,8 +48,12 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
     super.initState();
 
     // Sort descending by score
-    _sorted = List.of(widget.entries)
-      ..sort((a, b) => b.score.compareTo(a.score));
+    if(widget.entries.isEmpty){
+      _sorted = [];
+    } else {
+      _sorted = List.of(widget.entries)
+        ..sort((a, b) => b.score.compareTo(a.score));
+    }
 
     final int maxScore =
         _sorted.isNotEmpty ? _sorted.first.score : 1;
@@ -64,9 +67,13 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
     );
 
     _barAnimations = List.generate(_sorted.length, (i) {
-      final targetHeight =
-          maxScore > 0 ? _sorted[i].score / maxScore : 0.0;
+      double targetHeight = 0.0;
+      if( _sorted[i].score >= 0 && maxScore > 0) {
+        targetHeight =
+        maxScore > 0 ? _sorted[i].score / maxScore : 0.0;
+      }
       return Tween<double>(begin: 0, end: targetHeight).animate(
+
         CurvedAnimation(
           parent: _barControllers[i],
           curve: Curves.easeOutCubic,
@@ -75,18 +82,18 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
     });
 
     // Stagger the bar animations
-    for (int i = 0; i < _barControllers.length; i++) {
-      Future.delayed(Duration(milliseconds: 150 * i), () {
-        if (mounted) _barControllers[i].forward();
-      });
-    }
+      for (int i = 0; i < _barControllers.length; i++) {
+        Future.delayed(Duration(milliseconds: 150 * i), () {
+          if (mounted) _barControllers[i].forward();
+        });
+      }
 
     _timerController = AnimationController(
       vsync: this,
       duration: Duration(seconds: widget.timeLimit),
     );
 
-    _timerController.forward();
+      _timerController.forward();
 
     _timerController.addStatusListener((status) {
   });
@@ -117,117 +124,244 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
 
   @override
   Widget build(BuildContext context) {
-    const double maxBarHeight = 220;
+    if (widget.isFinal) {
+      return _buildFinalLeaderboard(context);
+    }
+    else {
+      const double maxBarHeight = 220;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF4AA3D9),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Title
-              const Text(
-                "🏆 Leaderboard",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Bar chart
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(_sorted.length, (i) {
-                    final entry = _sorted[i];
-                    return _BarColumn(
-                      entry: entry,
-                      rank: i,
-                      animation: _barAnimations[i],
-                      barColor: _barColor(i),
-                      maxBarHeight: maxBarHeight,
-                    );
-                  }),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Continue button
-              // Replace the SizedBox + ElevatedButton with:
-              // no timer for the final leaderboard, host should use the end game or restart buttons instead
-              if(!widget.isFinal)...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: SizedBox(
-                  height: 24,
-                  child: AnimatedBuilder(
-                    animation: _timerController,
-                    builder: (context, child) {
-                      return LinearProgressIndicator(
-                        value: 1 - _timerController.value,
-                        minHeight: 24,
-                      );
-                    },
+      return Scaffold(
+        backgroundColor: const Color(0xFF4AA3D9),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Title
+                const Text(
+                  "🏆 Leaderboard",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
+
+                const SizedBox(height: 32),
+
+                // Bar chart
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(_sorted.length, (i) {
+                      final entry = _sorted[i];
+                      return _BarColumn(
+                        entry: entry,
+                        rank: i,
+                        animation: _barAnimations[i],
+                        barColor: _barColor(i),
+                        maxBarHeight: maxBarHeight,
+                      );
+                    }),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Continue button
+                // Replace the SizedBox + ElevatedButton with:
+                // no timer for the final leaderboard, host should use the end game or restart buttons instead
+                if(!widget.isFinal)...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: SizedBox(
+                      height: 24,
+                      child: AnimatedBuilder(
+                        animation: _timerController,
+                        builder: (context, child) {
+                          return LinearProgressIndicator(
+                            value: 1 - _timerController.value,
+                            minHeight: 24,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ],
-              // only host should see the restart and end game buttons
-              if(widget.isHost && widget.isFinal)...[
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+    Widget _buildFinalLeaderboard(BuildContext context){
+
+      List<Widget> podiumWidgets = [];
+      if(_sorted.isNotEmpty){
+
+        if(_sorted.length > 1){
+          podiumWidgets.add(_buildPodiumPillar(_sorted[1], 2, 130, _barColor(1)));
+        }
+
+        podiumWidgets.add(_buildPodiumPillar(_sorted[0], 1, 180, _barColor(0)));
+
+        if(_sorted.length > 2){
+          podiumWidgets.add(_buildPodiumPillar(_sorted[2], 3, 100, _barColor(2)));
+        }
+      }
+
+      return Scaffold(
+        backgroundColor: const Color(0xFF1E1E2C),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
+
+                const Text("🏆  Final Results  🏆",
+                style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 30),
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: podiumWidgets,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Expanded(
+                  child: _sorted.length >  3 ?
+                      ListView.builder(
+                    itemCount: _sorted.length > 3 ? _sorted.length - 3 : 0,
+                    itemBuilder: (context, index){
+                      final actualRank = index + 3;
+                      final entry = _sorted[actualRank];
+                      return Card(
+                        color: const Color(0xFF2F2F3D),
+                        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 14),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey.shade800,
+                            child: Text("${actualRank + 1}", style: const TextStyle(color: Colors.white)),
+                          ),
+                          title: Text(entry.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          trailing: Text("${entry.score} Points", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        ),
+                      );
+                    },
+                  )
+                  : const Center(
+                    child: Text(""),
+                    ),
+                ),
+                if(widget.isHost)...[
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            if(buttonActivated == false){
+                          onPressed: (){
+                            if(!buttonActivated){
                               buttonActivated = true; //edge detection, only press button once
-                            Provider.of<HostGameState>(context, listen: false).restartGame();
+                              Provider.of<HostGameState>(context, listen: false).restartGame();
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)
                             ),
                           ),
                           child: const Text('Restart Game'),
                         ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Provider.of<HostGameState>(context, listen: false).endGame();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Provider.of<HostGameState>(context, listen: false).endGame();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('End Game'),
                           ),
-                        ),
-                        child: const Text('End Game'),
-                      )
-                    )
-                  ],
-                )
+                      ),
+                    ],
+                  )
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    Widget _buildPodiumPillar(LeaderboardEntry entry, int rank, double height, Color color){
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text("${entry.score}", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Container(
+              width: 80,
+              height: height,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.vertical(top:  Radius.circular(12)),
+                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))]
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("$rank", style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black38)),
+                ],
+              ),
+            ),
+            Container(
+              width: 80,
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF2F2F2F),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: Text(
+                entry.name,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            )
+          ],
+        ),
+      );
+    }
   }
-}
+
+
 
 class _BarColumn extends StatelessWidget {
   final LeaderboardEntry entry;

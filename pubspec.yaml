@@ -48,6 +48,7 @@ dependencies:
   uuid: ^4.5.3
   lottie: ^3.1.2
   auto_size_text: ^3.0.0
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:

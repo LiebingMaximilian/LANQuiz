@@ -7,6 +7,7 @@ import 'package:lan_quiz/sound_manager.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:lan_quiz/stats_service.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 
 class QuizQuestionWidget extends StatefulWidget {
@@ -123,8 +124,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   @override
   Widget build(BuildContext context) {
     final gameState = Provider.of<HostGameState>(context);
-
-    print("UI REBUILD (${gameState.myName}): INK BLOTTED ist AKTUELL -> ${gameState.isInkBlotted}");
 
     if (gameState.unlockAnswer) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -261,7 +260,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                 if (isCorrect) {
                                   bgColor = Colors.green;
                                   if (isSelected) SoundManager.answerCorrect();
-                                  if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);};
+                                  if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);}
                                 } else if (isSelected) {
                                   bgColor = Colors.red;
                                 } else {
@@ -397,7 +396,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
-                    onPressed: (gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) ||
+                    onPressed: (_answered || gameState.myUsedJokers.contains(JokerType.FIFTY_FIFTY) ||
                         gameState.isWaitingForJoker)
                         ? null
                         : () {
@@ -405,13 +404,13 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                     child: const Text("50:50"),
                   ),
                   ElevatedButton(
-                    onPressed: (gameState.myUsedJokers.contains(JokerType.DOUBLE_DOWN) ||
+                    onPressed: (_answered || gameState.myUsedJokers.contains(JokerType.DOUBLE_DOWN) ||
                         gameState.isWaitingForJoker)
                         ? null
                         : () {
@@ -419,13 +418,46 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
-                    child: const Text("2xOR-1"),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                          const Icon(FontAwesomeIcons.diceD20, color: Colors.purple,),
+
+                           Positioned(
+                             top: -5,
+                             right: -10,
+                             child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                               child: const Text(
+                                 "x2",
+                                 style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+
+                               ),
+                             ),
+                           ),
+                        Positioned(
+                          bottom: -5,
+                          left: -10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: const Text(
+                              "-1",
+                              style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+
+                  /*
                   ElevatedButton(
-                    onPressed: (gameState.myUsedJokers.contains(JokerType.SECOND_CHANCE) ||
+                    onPressed: (_answered || gameState.myUsedJokers.contains(JokerType.SECOND_CHANCE) ||
                         gameState.isWaitingForJoker)
                         ? null
                         : () {
@@ -433,13 +465,41 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                     child: const Icon(Icons.replay),
-                  ),
+                   ),
+                   */
                   ElevatedButton(
-                    onPressed: (gameState.myUsedJokers.contains(JokerType.INK_SPLASH) ||
+                    onPressed: (_answered || gameState.myUsedJokers.contains(JokerType.COPY_CAT) ||
+                        gameState.isWaitingForJoker)
+                        ? null
+                        : () {
+                      _showCopyCatDialog(context, gameState);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(FontAwesomeIcons.cat, color: Colors.purple),
+
+                        Transform.flip(
+                          flipX: true,
+                          child: Icon(
+                            FontAwesomeIcons.cat,
+                            color: Colors.grey.withAlpha(110),
+                          ),
+                        )
+                      ],
+                    )
+                  ),
+
+                  ElevatedButton(
+                    onPressed: (_answered || gameState.myUsedJokers.contains(JokerType.INK_SPLASH) ||
                         gameState.isWaitingForJoker)
                         ? null
                         : () {
@@ -447,7 +507,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                     child: const Icon(Icons.water_drop),
@@ -484,30 +544,102 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          title: const Text("Who do you want to attack?"),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: gameState.playerManager.players.length,
-              itemBuilder: (context, index) {
-                final player = gameState.playerManager.players[index];
-                print("DEBUG: Players: ${player.name} - ${player.id}");
+        return ListenableBuilder(
+          listenable: gameState,
+          builder: (context, child) {
 
-                if (player.id == gameState.myId) return const SizedBox.shrink();
+            if (gameState.quizPhase != QuizPhase.answering) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (ctx.mounted) Navigator.canPop(ctx) ? Navigator.pop(ctx) : null;
+              });
+            }
 
-                return ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(player.name),
-                  onTap: () {
-                    gameState.useJoker(JokerType.INK_SPLASH, targetId: player.id);
-                    Navigator.pop(ctx);
+            return AlertDialog(
+              title: const Text("Who do you want to attack?"),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: gameState.playerManager.players.length,
+                  itemBuilder: (context, index) {
+                    final player = gameState.playerManager.players[index];
+                    if (player.id == gameState.myId) return const SizedBox.shrink();
+
+                    return ListTile(
+                      leading: const Icon(Icons.person),
+                      key: ValueKey(player.id),
+                      title: Text(player.name),
+                      onTap: () {
+                        gameState.useJoker(JokerType.INK_SPLASH, targetId: player.id);
+                        Navigator.pop(ctx);
+                      },
+                    );
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCopyCatDialog(BuildContext context, dynamic gameState) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        // ListenableBuilder only rebuilds the dialog when gameState.notifyListeners() is used
+        return ListenableBuilder(
+          listenable: gameState,
+          builder: (context, child) {
+
+            if(gameState.quizPhase != QuizPhase.answering){
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if(context.mounted) Navigator.canPop(context) ? Navigator.pop(context) : null;
+              });
+            }
+
+            final otherPlayers = gameState.playerManager.players
+                .where((p) => p.id != gameState.myId)
+                .toList();
+
+            return AlertDialog(
+              title: const Text("Who do you want to copy?"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: otherPlayers.map<Widget>((player){
+                  // has player answered?
+                  bool hasAnswered = gameState.playersWhoAnswered.contains(player.id);
+
+                  return ListTile(
+                    key: ValueKey(player.id),
+                    leading: Icon(
+                      FontAwesomeIcons.cat,
+                      color: hasAnswered ? Colors.purple : Colors.grey.shade400,
+                    ),
+                    title: Text(
+                      player.name,
+                      style: TextStyle(
+                        color: hasAnswered ? Colors.black : Colors.grey,
+                        fontWeight: hasAnswered ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: hasAnswered
+                        ? const Text("has answered", style: TextStyle(color: Colors.green, fontSize: 12))
+                        : const Text("is still thinking...", style: TextStyle(fontSize: 12)),
+
+                    onTap: !hasAnswered
+                      ? null
+                      :  () {
+                      gameState.useJoker(JokerType.COPY_CAT, targetId: player.id);
+                      Navigator.of(context).pop();
+                    },
+
+                  );
+                }).toList(),
+              ),
+            );
+          },
         );
       },
     );

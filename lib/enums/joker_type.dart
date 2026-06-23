@@ -5,5 +5,6 @@ enum JokerType{
   DOUBLE_DOWN,
   INK_SPLASH,
   SECOND_CHANCE,
+  COPY_CAT
   // TODO: add more Joker
 }

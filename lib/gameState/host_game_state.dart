@@ -9,6 +9,7 @@ import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct im
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/player_answered_packet.dart';
 import 'package:lan_quiz/packets/register_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
@@ -31,6 +32,9 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   int? categoryId; //null is all categories
   final Set<String> doubleDownActive = {};
   final Set<String> secondChanceActive = {};
+  //       targetId, attackerId
+  final Map<String, String> copyCatActive = {};
+
 
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
@@ -76,6 +80,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Future<void> sendQuestion() async {
     _answersThisRoundMap.clear();
     doubleDownActive.clear();
+    copyCatActive.clear();
     secondChanceActive.clear();
     final ClientQuestion clientQuestion = await _getQuestionForRound();
     _correctAnswerIndex = clientQuestion.correctIndex;
@@ -149,7 +154,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
       case JokerType.INK_SPLASH:
         String targetId = request.targetId;
-        print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
+        // print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
         final responseIS = JokerResponsePacket(
             targetPlayerId: targetId,
             sourcePlayerName: pName,
@@ -158,6 +163,74 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         );
         broadcastCommand(jsonEncode(responseIS.toJson()));
         break;
+
+      case JokerType.COPY_CAT:
+        String targetId = request.targetId;
+        String targetName = playerManager.getNameById(targetId) ?? "";
+
+        if(_answersThisRoundMap.containsKey(targetName)){
+          String answerToCopy = _answersThisRoundMap[targetName]!;
+          _injectCopiedAnswer(pId, pName, answerToCopy);
+        }
+        else{
+          copyCatActive[targetId] = pId;
+          final responseCC = JokerResponsePacket(
+            targetPlayerId: pId,
+            sourcePlayerName: pName,
+            jokerType: JokerType.COPY_CAT,
+          );
+          broadcastCommand(jsonEncode(responseCC.toJson()));
+        }
+        break;
+    }
+  }
+
+  void _injectCopiedAnswer(String attackerId, String attackerName, String answer){
+    _answersThisRoundMap[attackerName] = answer;
+
+    bool hasDoubleDown = doubleDownActive.contains(attackerId);
+    if (answer == currentAnswers[_correctAnswerIndex]) {
+      playerManager.increaseScore(attackerId);
+      if (hasDoubleDown) playerManager.increaseScore(attackerId);
+    } else if (hasDoubleDown) {
+      playerManager.decreaseScore(attackerId);
+    }
+
+    _answersReceivedThisRound++;
+
+    final responseCC = JokerResponsePacket(
+      targetPlayerId: attackerId,
+      sourcePlayerName: attackerName,
+      jokerType: JokerType.COPY_CAT,
+    );
+    broadcastCommand(jsonEncode(responseCC.toJson()));
+
+    _checkRoundEnd();
+  }
+
+  void _checkRoundEnd(){
+    if(_answersReceivedThisRound >= clientCount){
+      if (_answersReceivedThisRound >= clientCount) {
+        _answersReceivedThisRound = -999;
+
+        final answerPacket = ShowCorrectAnswerPacket(
+          correctAnswerIndex: _correctAnswerIndex,
+          playerAnswers: _answersThisRoundMap,
+        );
+
+        broadcastCommand(jsonEncode(answerPacket.toJson()));
+
+        Future.delayed(const Duration(seconds: 4), () async {
+          if (currentRound < totalRounds) {
+            await showLeaderboardForXSeconds(5, false);
+            currentRound++;
+            await sendQuestion();
+          } else {
+            print("Game is over");
+            await showLeaderboardForXSeconds(20, true);
+          }
+        });
+      }
     }
   }
 
@@ -228,12 +301,19 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     final submitAnswerPacket = packet as SubmitAnswerPacket;
     String pId = submitAnswerPacket.playerId;
     String answer = submitAnswerPacket.answer;
+
+    final answeredPacket = PlayerAnsweredPacket(playerId: pId);
+    broadcastCommand(jsonEncode(answeredPacket.toJson()));
+
+    handlePlayerAnswered(answeredPacket);
+
     String pName = playerManager.getNameById(pId) ?? "Unknown";
     if(!playerManager.hasPlayer(pId)){
       throw Exception("Received answer from unregistered player with id $pId");
     }
     _answersThisRoundMap[playerManager.getNameById(pId)!] = answer;
 
+    // Second Chance Logik
     if(answer != currentAnswers[_correctAnswerIndex] && secondChanceActive.contains(pId)){
       secondChanceActive.remove(pId);
 
@@ -242,9 +322,9 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         jokerType: JokerType.SECOND_CHANCE,
       );
       broadcastCommand(jsonEncode(response.toJson()));
-
       return;
     }
+
 
     _answersThisRoundMap[pName] = answer;
     bool hasDoubleDown = doubleDownActive.contains(pId);
@@ -259,29 +339,18 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     }
 
     _answersReceivedThisRound++;
-    
-    if (_answersReceivedThisRound >= clientCount) {
-      _answersReceivedThisRound = -999;
 
-      final answerPacket = ShowCorrectAnswerPacket(
-        correctAnswerIndex: _correctAnswerIndex,
-        playerAnswers: _answersThisRoundMap,
-      );
+    // Copy Cat waiting list check
+    if (copyCatActive.containsKey(pId)){
+      String attackerId = copyCatActive[pId]!;
+      String attackerName = playerManager.getNameById(attackerId) ?? "Unknown";
 
-      broadcastCommand(jsonEncode(answerPacket.toJson()));
-
-        Future.delayed(const Duration(seconds: 4), () async {
-          if (currentRound < totalRounds) {
-            await showLeaderboardForXSeconds(5, false);
-            currentRound++;
-            await sendQuestion();
-      } else {
-        print("Game is over");
-        await showLeaderboardForXSeconds(20, true);
-      }
-    });
+      copyCatActive.remove(pId);
+      _injectCopiedAnswer(attackerId, attackerName, answer);
+    }
+    _checkRoundEnd();
    }
-  }
+
 
   Future<void> showLeaderboardForXSeconds(int seconds, bool isFinalLeaderboard) async {
     List<LeaderboardEntry> entries = scoresToLeaderboard(playerManager.players);
