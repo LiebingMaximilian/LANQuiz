@@ -42,13 +42,11 @@ class QuizStatsController{
     print("tracked Answer time");
   }
 
-  void trackJokers(bool isUsed){
+  void trackJokers(){
     if(_currentCategory == null) return;
-    if(isUsed){
     int globalJokers = (cachedStats.jokersUsed ?? 0) +1;
     cachedStats.jokersUsed = globalJokers;
     print("Tracked Joker");
-    }
   }
 
   Future<void> trackRoundRes(bool isCorrect) async {

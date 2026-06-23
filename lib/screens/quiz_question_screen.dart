@@ -402,7 +402,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       gameState.useJoker(JokerType.FIFTY_FIFTY);
-                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
@@ -417,7 +416,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       gameState.useJoker(JokerType.DOUBLE_DOWN);
-                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
@@ -432,7 +430,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       gameState.useJoker(JokerType.SECOND_CHANCE);
-                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
@@ -447,7 +444,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       _showPaintSplashDialog(context, gameState);
-                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
