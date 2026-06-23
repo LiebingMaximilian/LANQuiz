@@ -179,11 +179,11 @@ class ClientGameState extends BaseGameState {
   }
 
   void useJoker(JokerType jokerType, {String targetId = ""}) {
-    if (myUsedJokers.contains(jokerType) || isWaitingForJoker || currentAnswers.length == 2) return;
+    if (myUsedJokers.contains(jokerType) || isWaitingForJoker || currentAnswers.length == 2 || quizPhase != QuizPhase.answering) return;
 
     myUsedJokers.add(jokerType);
     isWaitingForJoker = true;
-
+    statsController.trackJokers();
     final request = JokerRequestPacket(playerName: myName, jokerType: jokerType, targetId: targetId);
     sendToServer(jsonEncode(request.toJson()));
   }

@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
@@ -300,7 +301,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                 child: Stack(
                                   children: [
                                     Center(
-                                      child: Text(
+                                      child: AutoSizeText(
                                         widget.answers[index],
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
@@ -401,7 +402,6 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                         ? null
                         : () {
                       gameState.useJoker(JokerType.FIFTY_FIFTY);
-                      statsController.trackJokers(true);
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(

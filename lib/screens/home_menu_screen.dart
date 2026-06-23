@@ -21,7 +21,6 @@ import 'package:lan_quiz/sound_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
