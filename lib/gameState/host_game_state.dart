@@ -286,6 +286,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
   void endGame() {
     print("game ending...");
     globalCategory = null;
+
     final endPacket = ShowLeaderboardPacket(
         time: 0,
         entries: scoresToLeaderboard(playerManager.players),
