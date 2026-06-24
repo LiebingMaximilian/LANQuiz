@@ -28,7 +28,6 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
   final Map<String,String> _answersThisRoundMap = {};
-  int? categoryId; //null is all categories
   final Set<String> doubleDownActive = {};
   final Set<String> secondChanceActive = {};
 
@@ -93,7 +92,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   }
 
   Future<ClientQuestion> _getQuestionForRound() async {
-    Question question = await fetchQuestion(categoryId); //categoryID if it is 0 it is read as null bya api_connector
+    Question question = await fetchQuestion(globalCategory);
     ClientQuestion clientQuestion = ClientQuestion.QuestionToClientQuestion(question);
     return clientQuestion;
   }
@@ -169,7 +168,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
   void endGame() {
     print("game ending...");
-    categoryId = null; //resetting category
+    globalCategory = null;
 
     final endPacket = ShowLeaderboardPacket(
         time: 0,
