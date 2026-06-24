@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/api_connector.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
+import 'package:lan_quiz/screens/home_menu_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:lan_quiz/screens/player_management_screen.dart';
 class HostSettingsScreen extends StatefulWidget{
@@ -20,6 +21,8 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
     super.initState();
     _categoriesFuture = fetchCategories();
     onStartPressed = false; //set it to false when screen loads
+    isHostButtonPressed = false;
+    updateToken();
   }
 
 
@@ -140,8 +143,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                     onSelected: (TriviaCategory? category) {
                       setState(() {
                         selectedCategory = category;
-                        
-                        widget.gameState.categoryId = category?.id; 
+                        globalCategory = category?.id;
                       });
                     },
                     dropdownMenuEntries: categoryList.map((category) {
@@ -153,6 +155,17 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
                   );
                 },
               ),
+              const SizedBox(height: 40),
+              ListTile(
+                  title: Text("Token"),
+                  subtitle: Text("No duplicate questions"),
+                  trailing: Switch(value: isTokenEnabled, onChanged: (bool value) {
+                    setState(() {
+                      isTokenEnabled = value;
+                    });
+                    updateToken();
+                  }),
+                ),
 
             const Spacer(),
 

@@ -124,6 +124,14 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
 
   @override
   Widget build(BuildContext context) {
+    final gameState = Provider.of<HostGameState>(context);
+
+    if(gameState.isPaused && _timerController.isAnimating){
+      _timerController.stop();
+    } else if(!gameState.isPaused && !_timerController.isAnimating){
+      _timerController.forward();
+    }
+
     if (widget.isFinal) {
       return _buildFinalLeaderboard(context);
     }

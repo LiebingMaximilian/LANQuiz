@@ -125,6 +125,12 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
   Widget build(BuildContext context) {
     final gameState = Provider.of<HostGameState>(context);
 
+    if(gameState.isPaused && _timerController.isAnimating){
+      _timerController.stop();
+    } else if(!gameState.isPaused && !_timerController.isAnimating && !_answered){
+      _timerController.forward();
+    }
+
     if (gameState.unlockAnswer) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -140,251 +146,251 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
     return Scaffold(
       backgroundColor: const Color(0xFF4AA3D9),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // TOP INFO
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Round ${widget.currentRound} / ${widget.totalRounds}",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.timer,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // QUESTION CARD
-              Expanded(
-                child: Column(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // TOP INFO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [
-                              BoxShadow(
-                                blurRadius: 10,
-                                color: Colors.black26,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              widget.question,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          //category addon on top of the question widget
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: FractionalTranslation(
-                            translation: const Offset(0.0, -0.5),
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2F2F2F),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  widget.currentCategory,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ANSWERS
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          GridView.builder(
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: widget.answers.length,
-                            gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 16,
-                              crossAxisSpacing: 16,
-                              childAspectRatio: 1.8,
-                            ),
-                            itemBuilder: (context, index) {
-                              final isSelected = _answer == widget.answers[index];
-                              final isCorrect = index == gameState.correctAnswerIndex;
-                              final isShowingResult = gameState.quizPhase == QuizPhase.showingResults;
-
-                              // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
-                              if (widget.answers[index] == "") {
-                                return const SizedBox.shrink();
-                              }
-
-                              Color bgColor = const Color(0xFF2F2F2F);
-                              if (isShowingResult) {
-                                if (isCorrect) {
-                                  bgColor = Colors.green;
-                                  if (isSelected) SoundManager.answerCorrect();
-                                  if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);}
-                                } else if (isSelected) {
-                                  bgColor = Colors.red;
-                                } else {
-                                  bgColor = Colors.grey.shade800;
-                                }
-                              } else if (isSelected) {
-                                bgColor = Colors.orange;
-                              }
-
-                              List<String> playersWhoChoseThis = [];
-                              if (isShowingResult) {
-                                gameState.playerAnswersThisRound
-                                    .forEach((name, answerText) {
-                                  if (answerText == widget.answers[index]) {
-                                    playersWhoChoseThis.add(name);
-                                  }
-                                });
-                              }
-
-                              return ElevatedButton(
-                                onPressed: _answered
-                                    ? null
-                                    : () async {
-                                  await SoundManager.answerSelected();
-                                  _handleAnswer(widget.answers[index]);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: bgColor,
-                                  disabledBackgroundColor: bgColor,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  elevation: 8,
-                                  padding: const EdgeInsets.all(16),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Center(
-                                      child: AutoSizeText(
-                                        widget.answers[index],
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    if (isShowingResult &&
-                                        playersWhoChoseThis.isNotEmpty)
-                                      Positioned(
-                                        bottom: 0,
-                                        right: 0,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: playersWhoChoseThis.map((name) {
-                                            String initial = name.isNotEmpty
-                                                ? name[0].toUpperCase()
-                                                : "?";
-                                            bool isMe = name == gameState.myName;
-
-                                            return Container(
-                                              margin: const EdgeInsets.only(left: 4),
-                                              width: 24,
-                                              height: 24,
-                                              decoration: BoxDecoration(
-                                                color: isMe
-                                                    ? Colors.blue
-                                                    : Colors.purpleAccent,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                    color: Colors.white,
-                                                    width: 1.5),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  isMe ? "Du" : initial,
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          if (gameState.isInkBlotted)
-                            Positioned.fill(
-                              child: IgnorePointer(
-                                child: Lottie.asset(
-                                  'assets/InkSplatterAnimation.json',
-                                  controller: _lottieController,
-                                  repeat: false,
-                                  fit: BoxFit.cover,
-                                  animate: true,
-                                  onLoaded: (composition) {
-                                    _lottieController.duration = composition.duration;
-
-                                    _lottieController.forward(from: 0).then((_) {
-                                      Future.delayed(const Duration(seconds: 1), () {
-                                        if (mounted && gameState.isInkBlotted) {
-                                          _lottieController.reverse().then((_) {
-                                            if (mounted) {
-                                              gameState.isInkBlotted = false;
-                                              setState(() {});
-                                            }
-                                          });
-                                        }
-                                      });
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                        ],
+                    Text(
+                      "Round ${widget.currentRound} / ${widget.totalRounds}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const Icon(
+                      Icons.timer,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // QUESTION CARD
+                Expanded(
+                  child: Column(
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: const [
+                                BoxShadow(
+                                  blurRadius: 10,
+                                  color: Colors.black26,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                widget.question,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            //category addon on top of the question widget
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: FractionalTranslation(
+                              translation: const Offset(0.0, -0.5),
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2F2F2F),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    widget.currentCategory,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ANSWERS
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: widget.answers.length,
+                              gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                childAspectRatio: 1.8,
+                              ),
+                              itemBuilder: (context, index) {
+                                final isSelected = _answer == widget.answers[index];
+                                final isCorrect = index == gameState.correctAnswerIndex;
+                                final isShowingResult = gameState.quizPhase == QuizPhase.showingResults;
+
+                                // when the 50:50 Joker is used this makes the 2 randomly selected wrong answers disappear
+                                if (widget.answers[index] == "") {
+                                  return const SizedBox.shrink();
+                                }
+
+                                Color bgColor = const Color(0xFF2F2F2F);
+                                if (isShowingResult) {
+                                  if (isCorrect) {
+                                    bgColor = Colors.green;
+                                    if (isSelected) SoundManager.answerCorrect();
+                                    if (isSelected) {statsController.trackRoundRes(true); } else {statsController.trackRoundRes(false);}
+                                  } else if (isSelected) {
+                                    bgColor = Colors.red;
+                                  } else {
+                                    bgColor = Colors.grey.shade800;
+                                  }
+                                } else if (isSelected) {
+                                  bgColor = Colors.orange;
+                                }
+
+                                List<String> playersWhoChoseThis = [];
+                                if (isShowingResult) {
+                                  gameState.playerAnswersThisRound
+                                      .forEach((name, answerText) {
+                                    if (answerText == widget.answers[index]) {
+                                      playersWhoChoseThis.add(name);
+                                    }
+                                  });
+                                }
+
+                                return ElevatedButton(
+                                  onPressed: _answered
+                                      ? null
+                                      : () async {
+                                    await SoundManager.answerSelected();
+                                    _handleAnswer(widget.answers[index]);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: bgColor,
+                                    disabledBackgroundColor: bgColor,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    elevation: 8,
+                                    padding: const EdgeInsets.all(16),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Center(
+                                        child: AutoSizeText(
+                                          widget.answers[index],
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isShowingResult &&
+                                          playersWhoChoseThis.isNotEmpty)
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: playersWhoChoseThis.map((name) {
+                                              String initial = name.isNotEmpty
+                                                  ? name[0].toUpperCase()
+                                                  : "?";
+                                              bool isMe = name == gameState.myName;
+
+                                              return Container(
+                                                margin: const EdgeInsets.only(left: 4),
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  color: isMe
+                                                      ? Colors.blue
+                                                      : Colors.purpleAccent,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    isMe ? "Du" : initial,
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            if (gameState.isInkBlotted)
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: Lottie.asset(
+                                    'assets/InkSplatterAnimation.json',
+                                    controller: _lottieController,
+                                    repeat: false,
+                                    fit: BoxFit.cover,
+                                    animate: true,
+                                    onLoaded: (composition) {
+                                      _lottieController.duration = composition.duration;
+
+                                      _lottieController.forward(from: 0).then((_) {
+                                        Future.delayed(const Duration(seconds: 1), () {
+                                          if (mounted && gameState.isInkBlotted) {
+                                            _lottieController.reverse().then((_) {
+                                              if (mounted) {
+                                                gameState.isInkBlotted = false;
+                                                setState(() {});
+                                              }
+                                            });
+                                          }
+                                        });
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),

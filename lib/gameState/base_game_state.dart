@@ -3,8 +3,8 @@ import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
-import 'package:lan_quiz/player_data.dart';
 import 'package:lan_quiz/player_manager.dart';
+import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class BaseGameState extends ChangeNotifier {
@@ -27,6 +27,10 @@ abstract class BaseGameState extends ChangeNotifier {
   int correctAnswerIndex = -1;
   Map<String,String> playerAnswersThisRound = {}; // saves player name -> Answer
   bool unlockAnswer = false;
+  bool isPaused = false;
+  List<LeaderboardEntry> leaderboardEntries = [];
+  int leaderboardTimeLimit = 5;
+  bool isFinalLeaderboard = false;
 
   // Shared interface that both components implement
   void processNetworkMessage(String msg);

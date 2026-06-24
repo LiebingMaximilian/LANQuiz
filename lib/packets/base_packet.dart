@@ -1,5 +1,6 @@
 import 'package:lan_quiz/client_question.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
+import 'package:lan_quiz/packets/game_status_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
 import 'package:lan_quiz/packets/player_answered_packet.dart';
@@ -40,6 +41,10 @@ class Packet {
         return UpdatePlayerListPacket.fromJson(json);
       case PacketType.PLAYER_ANSWERED:
         return PlayerAnsweredPacket.fromJson(json);
+      case PacketType.GAME_PAUSED:
+        return GameStatusPacket.fromJson(json);
+      case PacketType.GAME_RESUMED:
+        return GameStatusPacket.fromJson(json);
     }
   }
 }

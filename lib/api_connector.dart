@@ -23,9 +23,29 @@ PS                                                                //correct_answ
 */
 
 String? token = "3b3"; //false token, let the code create a new one through the exception
+String? savedToken;
 int excCntr = 0;
 int secondsLeft = 0;
 bool timerRunning = false;
+bool isTokenEnabled = true;
+int? globalCategory;
+
+Future<void> updateToken() async{
+  if(isTokenEnabled == true){
+    if(savedToken == null){
+      Token newToken = await createToken();
+      savedToken = newToken.token;
+      print("token created");
+    }
+    token = savedToken;
+    print("token set");
+  } else if(isTokenEnabled == false){
+    token = null;
+    print("token disabled");
+  }
+}
+
+
 
 //helper function to decode html special chars to usable special chars
 String decodeHtml(String htmlString) { 
@@ -61,9 +81,13 @@ class QuestionData{  //because the api is staged we have to first handle respons
   });
 
   factory QuestionData.fromJson(Map<String, dynamic> json){
+    final int code = json['response_code'];
+    final List? results =  json['results'];
     return QuestionData(
-      responseCode: json['response_code'], //decoding response code
-      question: Question.fromJson(json['results'][0]),
+      responseCode: code, //decoding response code
+      question: (code == 0 && results != null && results.isNotEmpty)
+          ? Question.fromJson(results[0])
+          : Question.empty(),
     );
   }
 }
@@ -85,6 +109,17 @@ class Question { //question class with all available information
     required this.incorrectAnswers,
   });
 
+  factory Question.empty() { //to prevent possible errors even if that is never expected
+    return const Question(
+      type: '',
+      difficulty: '',
+      category: '',
+      question: 'No question available due to API error.',
+      correctAnswer: '',
+      incorrectAnswers: [],
+    );
+  }
+
   factory Question.fromJson(Map<String, dynamic> json) {
     return Question(
       type: json['type'],
@@ -99,11 +134,14 @@ class Question { //question class with all available information
 
 
 
-//TODO: add parameter for categories and add api calls for that
 Future<Question> fetchQuestion([int? category]) async { // fetches and returns questions.
 
-    final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
-        (token != null ? '&token=' : ''); //TODO: try string interpolation instead of concatenation
+    final categoryQuery = category != null ? '&category=$category' : '';
+    final tokenQuery = token != null ? '&token=$token' : '';
+    final String url = 'https://opentdb.com/api.php?amount=1$categoryQuery$tokenQuery';
+
+   // final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
+    //    (token != null ? '&token=$token' : ''); // TODO: try string interpolation instead of concatenation
     final response = await http.get(
         Uri.parse(url)
     );
@@ -120,24 +158,31 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
           return data.question;
         case 1: //no questions left
           throw Exception("No Results, not enough questions left");
+          //todo get random questions after counter finished
         case 2: // invalid url
           throw Exception("Invalid Parameter");
         case 3:
         //creates token when token is invalid
           Token newToken = await createToken();
           token = newToken.token;
+          print(token);
           return fetchQuestion();
-        case 4: // no questions available who havent been used - reset token or ask user if token should be reset
-          bool rst = await resetToken();
-          if(rst == true){
-            //TODO: Message to user that token has been reset succesfully
-            return fetchQuestion();
-          } else {
+        case 4: // no questions available who havent been used - return random category or reset token
+          if(category != null){
+            globalCategory = null; //gives question for random catogory back if category runs out of questions
+            //TODO: inform user that category is empty + loading indicator
+            return fetchQuestion(); 
+          }
+            bool rst = await resetToken(); //resets token if all questions are used up
+            if(rst){
+              return fetchQuestion();
+            } else {
             //create new token
             Token newToken = await createToken();
             token = newToken.token;
             return fetchQuestion();
-          }
+            }
+          
 
         case 5: //too fast request, probably not used anymore because the statuscode handles that with 429
         if(excCntr < 3) {
