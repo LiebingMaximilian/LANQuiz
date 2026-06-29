@@ -54,7 +54,15 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
       notificationIcon: AndroidResource(name: 'background_icon', defType: 'drawable'),
     );
 
-    bool hasPermissions = await FlutterBackground.initialize(androidConfig: androidConfig);
+    
+  Future<bool> backgroundPermissionAndroid() async {
+    if(Platform.isAndroid){
+      return await FlutterBackground.initialize(androidConfig: androidConfig);
+    }
+    return false;
+  }
+
+    bool hasPermissions = await backgroundPermissionAndroid();
 
     if(hasPermissions){
       await FlutterBackground.enableBackgroundExecution();
