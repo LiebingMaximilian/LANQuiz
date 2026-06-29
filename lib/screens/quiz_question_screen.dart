@@ -431,7 +431,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                       alignment: Alignment.center,
                       clipBehavior: Clip.none,
                       children: [
-                          const Icon(FontAwesomeIcons.diceD20, color: Colors.purple,),
+                          const FaIcon(FontAwesomeIcons.diceD20, color: Colors.purple,),
 
                            Positioned(
                              top: -5,
@@ -491,11 +491,11 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                     ),
                     child: Row(
                       children: [
-                        const Icon(FontAwesomeIcons.cat, color: Colors.purple),
+                        const FaIcon(FontAwesomeIcons.cat, color: Colors.purple),
 
                         Transform.flip(
                           flipX: true,
-                          child: Icon(
+                          child: FaIcon(
                             FontAwesomeIcons.cat,
                             color: Colors.grey.withAlpha(110),
                           ),
@@ -619,7 +619,7 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
 
                   return ListTile(
                     key: ValueKey(player.id),
-                    leading: Icon(
+                    leading: FaIcon(
                       FontAwesomeIcons.cat,
                       color: hasAnswered ? Colors.purple : Colors.grey.shade400,
                     ),
