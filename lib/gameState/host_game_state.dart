@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
 import 'package:lan_quiz/packets/base_packet.dart';
+import 'package:lan_quiz/packets/game_status_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/player_answered_packet.dart';
 import 'package:lan_quiz/packets/register_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
 import 'package:lan_quiz/packets/start_round_packet.dart';
@@ -21,8 +25,9 @@ import '../client_question.dart';
 import '../api_connector.dart';
 import '../packets/show_correct_answer_packet.dart';
 import '../packets/update_player_list_packet.dart';
+import 'package:flutter_background/flutter_background.dart';
 
-class HostGameState extends ClientGameState { //extending client_game_state means host is client and host in one, which is what we want
+class HostGameState extends ClientGameState with WidgetsBindingObserver { //extending client_game_state means host is client and host in one, which is what we want
   int _correctAnswerIndex = 0;
   int _answersReceivedThisRound = 0;
   Map<String, Set<JokerType>> usedJokers = {};
@@ -30,13 +35,32 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   final Map<String,String> _answersThisRoundMap = {};
   final Set<String> doubleDownActive = {};
   final Set<String> secondChanceActive = {};
+  //       targetId, attackerId
+  final Map<String, String> copyCatActive = {};
+
 
   Future<void> setup() async {
     // Optional placeholder setup lifecycle hook called from GameController
     await hostGame();
   }
 
+  @override
   Future<void> hostGame() async {
+
+    const androidConfig = FlutterBackgroundAndroidConfig(
+      notificationTitle: "LAN Quiz Server",
+      notificationText: "The Game is runing in the backgroudnd...",
+      notificationImportance: AndroidNotificationImportance.normal,
+      notificationIcon: AndroidResource(name: 'background_icon', defType: 'drawable'),
+    );
+
+    bool hasPermissions = await FlutterBackground.initialize(androidConfig: androidConfig);
+
+    if(hasPermissions){
+      await FlutterBackground.enableBackgroundExecution();
+    }
+
+    WidgetsBinding.instance.addObserver(this);
     _broadcast = await startBroadcast();
     
     startSocketServer(
@@ -61,6 +85,26 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     notifyListeners();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state){
+    if(mode != Mode.host) return;
+
+    if(uiState != UiState.quiz && uiState != UiState.leaderboard) return;
+
+    if(state == AppLifecycleState.paused){
+      isPaused = true;
+      final pausePacket = GameStatusPacket(isPaused: true);
+      broadcastCommand(jsonEncode(pausePacket.toJson()));
+      notifyListeners();
+
+    } else if (state == AppLifecycleState.resumed){
+      isPaused = false;
+      final resumePacket = GameStatusPacket(isPaused: false);
+      broadcastCommand(jsonEncode(resumePacket.toJson()));
+      notifyListeners();
+    }
+  }
+
   Future<void> startGame(int rounds, int timeLimit) async {
     if (mode != Mode.host) return;
 
@@ -75,11 +119,12 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
   Future<void> sendQuestion() async {
     _answersThisRoundMap.clear();
     doubleDownActive.clear();
+    copyCatActive.clear();
     secondChanceActive.clear();
     final ClientQuestion clientQuestion = await _getQuestionForRound();
     _correctAnswerIndex = clientQuestion.correctIndex;
     _answersReceivedThisRound = 0;
-    
+
     final startGamePacket = StartRoundPacket(
       round: currentRound, 
       rounds: totalRounds, 
@@ -120,7 +165,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         final responseFF = JokerResponsePacket(
           targetPlayerId: pId,
           sourcePlayerName: pName,
-          answersToHide: [wrongIndices[0], wrongIndices[1]],
+          answersToHide: wrongIndices.take(2).toList(),
           jokerType: request.jokerType,
         );
         broadcastCommand(jsonEncode(responseFF.toJson()));
@@ -148,7 +193,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
       case JokerType.INK_SPLASH:
         String targetId = request.targetId;
-        print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
+        // print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
         final responseIS = JokerResponsePacket(
             targetPlayerId: targetId,
             sourcePlayerName: pName,
@@ -157,6 +202,78 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         );
         broadcastCommand(jsonEncode(responseIS.toJson()));
         break;
+
+      case JokerType.COPY_CAT:
+        String targetId = request.targetId;
+        String targetName = playerManager.getNameById(targetId) ?? "";
+
+        if(_answersThisRoundMap.containsKey(targetName)){
+          String answerToCopy = _answersThisRoundMap[targetName]!;
+          _injectCopiedAnswer(pId, pName, answerToCopy);
+        }
+        else{
+          copyCatActive[targetId] = pId;
+          final responseCC = JokerResponsePacket(
+            targetPlayerId: pId,
+            sourcePlayerName: pName,
+            jokerType: JokerType.COPY_CAT,
+          );
+          broadcastCommand(jsonEncode(responseCC.toJson()));
+        }
+        break;
+    }
+  }
+
+  void _injectCopiedAnswer(String attackerId, String attackerName, String answer){
+    _answersThisRoundMap[attackerName] = answer;
+
+    bool hasDoubleDown = doubleDownActive.contains(attackerId);
+    if (answer == currentAnswers[_correctAnswerIndex]) {
+      playerManager.increaseScore(attackerId);
+      if (hasDoubleDown) playerManager.increaseScore(attackerId);
+    } else if (hasDoubleDown) {
+      playerManager.decreaseScore(attackerId);
+    }
+
+    _answersReceivedThisRound++;
+
+    final responseCC = JokerResponsePacket(
+      targetPlayerId: attackerId,
+      sourcePlayerName: attackerName,
+      jokerType: JokerType.COPY_CAT,
+    );
+    broadcastCommand(jsonEncode(responseCC.toJson()));
+
+    _checkRoundEnd();
+  }
+
+  void _checkRoundEnd(){
+
+      if (_answersReceivedThisRound >= clientCount) {
+        _answersReceivedThisRound = -999;
+
+        final answerPacket = ShowCorrectAnswerPacket(
+          correctAnswerIndex: _correctAnswerIndex,
+          playerAnswers: _answersThisRoundMap,
+        );
+
+        broadcastCommand(jsonEncode(answerPacket.toJson()));
+
+        _handleNextStep();
+      }
+  }
+
+  Future<void> _handleNextStep() async{
+    await Future.delayed(const Duration(seconds: 4));
+
+    if(currentRound < totalRounds){
+      await showLeaderboardForXSeconds(5, false);
+
+      currentRound++;
+      await sendQuestion();
+    } else {
+      await showLeaderboardForXSeconds(20, true);
+     // endGame();
     }
   }
 
@@ -227,12 +344,19 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     final submitAnswerPacket = packet as SubmitAnswerPacket;
     String pId = submitAnswerPacket.playerId;
     String answer = submitAnswerPacket.answer;
+
+    final answeredPacket = PlayerAnsweredPacket(playerId: pId);
+    broadcastCommand(jsonEncode(answeredPacket.toJson()));
+
+    handlePlayerAnswered(answeredPacket);
+
     String pName = playerManager.getNameById(pId) ?? "Unknown";
     if(!playerManager.hasPlayer(pId)){
       throw Exception("Received answer from unregistered player with id $pId");
     }
     _answersThisRoundMap[playerManager.getNameById(pId)!] = answer;
 
+    // Second Chance Logic
     if(answer != currentAnswers[_correctAnswerIndex] && secondChanceActive.contains(pId)){
       secondChanceActive.remove(pId);
 
@@ -241,7 +365,6 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
         jokerType: JokerType.SECOND_CHANCE,
       );
       broadcastCommand(jsonEncode(response.toJson()));
-
       return;
     }
 
@@ -258,29 +381,18 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
     }
 
     _answersReceivedThisRound++;
-    
-    if (_answersReceivedThisRound >= clientCount) {
-      _answersReceivedThisRound = -999;
 
-      final answerPacket = ShowCorrectAnswerPacket(
-        correctAnswerIndex: _correctAnswerIndex,
-        playerAnswers: _answersThisRoundMap,
-      );
+    // Copy Cat waiting list check
+    if (copyCatActive.containsKey(pId)){
+      String attackerId = copyCatActive[pId]!;
+      String attackerName = playerManager.getNameById(attackerId) ?? "Unknown";
 
-      broadcastCommand(jsonEncode(answerPacket.toJson()));
-
-        Future.delayed(const Duration(seconds: 4), () async {
-          if (currentRound < totalRounds) {
-            await showLeaderboardForXSeconds(5, false);
-            currentRound++;
-            await sendQuestion();
-      } else {
-        print("Game is over");
-        await showLeaderboardForXSeconds(20, true);
-      }
-    });
+      copyCatActive.remove(pId);
+      _injectCopiedAnswer(attackerId, attackerName, answer);
+    }
+    _checkRoundEnd();
    }
-  }
+
 
   Future<void> showLeaderboardForXSeconds(int seconds, bool isFinalLeaderboard) async {
     List<LeaderboardEntry> entries = scoresToLeaderboard(playerManager.players);
@@ -290,7 +402,20 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
       isFinalLeaderboard: isFinalLeaderboard
     );
     broadcastCommand(jsonEncode(showLeaderboardPacket.toJson()));
-    await Future.delayed(Duration(seconds: seconds));
+
+    int remainingSeconds = seconds;
+    while(remainingSeconds > 0){
+      await Future.delayed(const Duration(seconds: 1));
+      if(!isPaused){
+        remainingSeconds--;
+      }
+      else {
+        continue;
+      }
+    }
+    if(!isPaused){
+      _checkRoundEnd();
+    }
   }
 
   List<LeaderboardEntry> scoresToLeaderboard(List<PlayerData> players) {
@@ -302,7 +427,11 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
 
   @override
   void dispose() {
+    if(FlutterBackground.isBackgroundExecutionEnabled){
+      FlutterBackground.disableBackgroundExecution();
+    }
     _broadcast?.stop();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -320,6 +449,7 @@ class HostGameState extends ClientGameState { //extending client_game_state mean
       processNetworkMessage(data);
     }
   }
+
 
   void kickPlayer(String playerId) {
     playerManager.kick(playerId);

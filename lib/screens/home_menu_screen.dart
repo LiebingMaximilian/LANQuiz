@@ -1,20 +1,20 @@
 import 'dart:convert';
-
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/parser.dart';
-import 'package:lan_quiz/client_question.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/packets/submit_answer_packet.dart';
 import 'package:lan_quiz/screens/host_settings_screen.dart';
+import 'package:lan_quiz/screens/leaderboard_screen.dart';
 import 'package:lan_quiz/screens/player_waiting_screen.dart';
 import 'package:lan_quiz/screens/quiz_question_screen.dart';
 import 'package:lan_quiz/screens/global_settings_screen.dart';
 import 'package:lan_quiz/stats_service.dart';
 import 'package:provider/provider.dart';
+import '../enums/Mode.dart';
 import '../gameState/host_game_state.dart';
 import 'player_statistics_screen.dart';
 import 'package:lan_quiz/sound_manager.dart';
@@ -71,26 +71,72 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final gameState = context.watch<HostGameState>();
 
-    return switch (gameState.uiState) {
-      UiState.home => const HomeMenuScreen(),
-      UiState.hostLobby => HostSettingsScreen(gameState: gameState,),
-      UiState.waiting => const PlayerWaitingScreen(),
-      UiState.quiz => QuizQuestionWidget(
-          currentRound: gameState.currentRound,
-          totalRounds: gameState.totalRounds,
-          question: parse(gameState.currentQuestion).body!.text,
-          currentCategory: parse(gameState.currentCategory).body!.text,
-          timeLimit: gameState.answerTimeLimit,
-          answers: gameState.currentAnswers,
-          giveAnswer: (answer, timeTaken){
-            print("answer $answer logged in $timeTaken seconds");
-            final answerPacket = SubmitAnswerPacket(answer: answer, timeTaken: timeTaken, playerName: gameState.myName, playerId: gameState.myId);
-            gameState.sendToServer(jsonEncode(answerPacket.toJson()));
-          },
-      ),
-      UiState.leaderboard => gameState.leaderboard,
-    };
-  
+    return Stack(
+      children: [
+
+       switch (gameState.uiState) {
+        UiState.home => const HomeMenuScreen(),
+        UiState.hostLobby => HostSettingsScreen(gameState: gameState,),
+        UiState.waiting => const PlayerWaitingScreen(),
+        UiState.quiz => QuizQuestionWidget(
+            currentRound: gameState.currentRound,
+            totalRounds: gameState.totalRounds,
+            question: parse(gameState.currentQuestion).body!.text,
+            currentCategory: parse(gameState.currentCategory).body!.text,
+            timeLimit: gameState.answerTimeLimit,
+            answers: gameState.currentAnswers,
+            giveAnswer: (answer, timeTaken){
+              print("answer $answer logged in $timeTaken seconds");
+              final answerPacket = SubmitAnswerPacket(answer: answer, timeTaken: timeTaken, playerName: gameState.myName, playerId: gameState.myId);
+              gameState.sendToServer(jsonEncode(answerPacket.toJson()));
+            },
+        ),
+        UiState.leaderboard => LeaderboardWidget(
+          entries: gameState.leaderboardEntries,
+          timeLimit: gameState.leaderboardTimeLimit,
+          isFinal: gameState.isFinalLeaderboard,
+          isHost: gameState.mode == Mode.host,
+        ),
+        },
+
+        if(gameState.isPaused)
+          Container(
+            color: Colors.black.withAlpha(200),
+            width: double.infinity,
+            height: double.infinity,
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.amber),
+                  SizedBox(height: 24),
+                  Text(
+                    "Game is Paused",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      "The Host put this app in the background :(",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                ],
+              ),
+            ),
+
+          ),
+      ],
+    );
   }
 }
 

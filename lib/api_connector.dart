@@ -30,7 +30,7 @@ bool timerRunning = false;
 bool isTokenEnabled = true;
 int? globalCategory;
 
-void updateToken() async{
+Future<void> updateToken() async{
   if(isTokenEnabled == true){
     if(savedToken == null){
       Token newToken = await createToken();
@@ -136,8 +136,12 @@ class Question { //question class with all available information
 
 Future<Question> fetchQuestion([int? category]) async { // fetches and returns questions.
 
-    final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
-        (token != null ? '&token=$token' : ''); //TODO: try string interpolation instead of concatenation
+    final categoryQuery = category != null ? '&category=$category' : '';
+    final tokenQuery = token != null ? '&token=$token' : '';
+    final String url = 'https://opentdb.com/api.php?amount=1$categoryQuery$tokenQuery';
+
+   // final String url = 'https://opentdb.com/api.php?amount=1' + (category != null ? '&category=$category' : '') +
+    //    (token != null ? '&token=$token' : ''); // TODO: try string interpolation instead of concatenation
     final response = await http.get(
         Uri.parse(url)
     );

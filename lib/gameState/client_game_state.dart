@@ -6,9 +6,11 @@ import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/base_game_state.dart';
+import 'package:lan_quiz/host.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
+import 'package:lan_quiz/packets/player_answered_packet.dart';
 import 'package:lan_quiz/packets/register_packet.dart';
 import 'package:lan_quiz/packets/show_correct_answer_packet.dart';
 import 'package:lan_quiz/packets/show_leaderboard_packet.dart';
@@ -27,9 +29,10 @@ class ClientGameState extends BaseGameState {
   List<BonsoirService> discoveredServices = [];
   StreamSubscription? _streamSubscription;
   IOWebSocketChannel? channel;
-  Set<JokerType> myUsedJokers = {};
+  //Set<JokerType> myUsedJokers = {};
   late LeaderboardWidget leaderboard;
   bool isInkBlotted = false;
+  Set<String> playersWhoAnswered = {};
 
   Future<void> joinGame(String ip) async {
     try {
@@ -45,12 +48,11 @@ class ClientGameState extends BaseGameState {
         },
         onError: (error) {
           print("Error $error");
-          notifyListeners();
+          _cleanupConnection();
         },
         onDone: () {
           print("Host disconnected connection terminated");
-          uiState = UiState.home;
-          notifyListeners();
+          _cleanupConnection();
         },
       );
       
@@ -64,12 +66,25 @@ class ClientGameState extends BaseGameState {
     }
   }
 
+  void _cleanupConnection(){
+     isPaused = false;
+     uiState = UiState.home;
+     quizPhase = QuizPhase.answering;
+     notifyListeners();
+  }
+
   void sendToServer(String msg) {
     if (channel != null) {
       channel!.sink.add(msg);
     } else {
       print("Cannot write payload: Channel connection is dead.");
     }
+  }
+
+  void handlePlayerAnswered(Packet packet){
+    final p = packet as PlayerAnsweredPacket;
+    playersWhoAnswered.add(p.playerId);
+    notifyListeners();
   }
 
   @override
@@ -79,6 +94,7 @@ class ClientGameState extends BaseGameState {
       final packet = Packet.fromJson(jsonDecode(msg));
       switch (packet.type) {
         case PacketType.START_ROUND:
+          isPaused = false;
           startRound(packet);
           break;
         case PacketType.SHOW_LEADERBOARD:
@@ -92,6 +108,16 @@ class ClientGameState extends BaseGameState {
           break;
         case PacketType.UPDATE_PLAYER_LIST:
           handlePlayerListUpdate(packet);
+          break;
+        case PacketType.PLAYER_ANSWERED:
+          handlePlayerAnswered(packet);
+        case PacketType.GAME_RESUMED:
+          isPaused = false;
+          notifyListeners();
+          break;
+        case PacketType.GAME_PAUSED:
+          isPaused = true;
+          notifyListeners();
           break;
         default:
           break;
@@ -118,9 +144,7 @@ class ClientGameState extends BaseGameState {
   void handleJokerResponse(Packet packet) {
     final response = packet as JokerResponsePacket;
 
-    print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, GOT JOKER RESPONSE");
-
-
+    // print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, GOT JOKER RESPONSE");
     // has host confirmed my request?
     if(response.sourcePlayerName == myName){
       isWaitingForJoker = false;
@@ -130,7 +154,7 @@ class ClientGameState extends BaseGameState {
     // am i the target of the joker?
     if (response.targetPlayerId == myId) {
 
-      print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I AM THE TARGET, USE JOKER");
+      // print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I AM THE TARGET, USE JOKER");
       if(response.sourcePlayerName == myName) {
         myUsedJokers.add(response.jokerType);
       }
@@ -158,13 +182,13 @@ class ClientGameState extends BaseGameState {
           break;
 
         case JokerType.INK_SPLASH:
-          print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I GOT INK SPLASH");
+          // print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I GOT INK SPLASH");
           isInkBlotted = true;
           notifyListeners();
           break;
 
-        default:
-          throw Exception('Joker does not exist');
+        case JokerType.COPY_CAT:
+          break;
       }
       notifyListeners();
     }
@@ -208,24 +232,22 @@ class ClientGameState extends BaseGameState {
     correctAnswerIndex = -1;
     playerAnswersThisRound.clear();
     isInkBlotted = false;
-    
-    
-    
+    playersWhoAnswered.clear();
+
     notifyListeners();
   }
 
   void displayLeaderboard(Packet packet) {
     final showLeaderboardPacket = packet as ShowLeaderboardPacket;
     uiState = UiState.leaderboard;
-    
-    leaderboard = LeaderboardWidget(
-      entries: showLeaderboardPacket.entries,
-      timeLimit: showLeaderboardPacket.time,
-      isFinal: showLeaderboardPacket.isFinalLeaderboard,
-      isHost: mode == Mode.host,
-    );
+
+      leaderboardEntries = showLeaderboardPacket.entries;
+      leaderboardTimeLimit = showLeaderboardPacket.time;
+      isFinalLeaderboard = showLeaderboardPacket.isFinalLeaderboard;
+
     notifyListeners();
   }
+
   Future<void> discoverGames() async {
   discoveredServices.clear();
   notifyListeners();
@@ -259,7 +281,8 @@ class ClientGameState extends BaseGameState {
   await _discovery!.start();
   print("DEBUG: Discovery started");
 }
-  Future<void> startDiscovery() async {
+
+ /* Future<void> startDiscovery() async {         redundant?
     discoveredServices.clear();
     _discovery = BonsoirDiscovery(type: '_quizduell._tcp');
     await _discovery!.ready;
@@ -268,7 +291,7 @@ class ClientGameState extends BaseGameState {
       if (event.type == BonsoirDiscoveryEventType.discoveryServiceFound) {
         event.service!.resolve(_discovery!.serviceResolver);
       } else if (event.type == BonsoirDiscoveryEventType.discoveryServiceResolved && event.service != null) {
-        final resolved = event.service as ResolvedBonsoirService;
+        // final resolved = event.service as ResolvedBonsoirService;
         if (!discoveredServices.any((s) => s.name == event.service!.name)) {
           discoveredServices.add(event.service!);
           notifyListeners();
@@ -281,6 +304,8 @@ class ClientGameState extends BaseGameState {
 
     await _discovery!.start();
   }
+  */
+
 
   void stopDiscovery() {
     _discovery?.stop();
@@ -293,6 +318,7 @@ class ClientGameState extends BaseGameState {
       notifyListeners();
     }
   }
+
   void cancelJoin() {
     // Note: No await or async, if await is used here the code will
     // be stuck here when the wrong ip address was used when joining a game
