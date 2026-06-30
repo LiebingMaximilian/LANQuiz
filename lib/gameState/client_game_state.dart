@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:lan_quiz/enums/Mode.dart';
 import 'package:lan_quiz/enums/quiz_phase.dart';
@@ -7,6 +8,7 @@ import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/base_game_state.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
+import 'package:lan_quiz/packets/join_rejected_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
 import 'package:lan_quiz/packets/player_answered_packet.dart';
@@ -19,7 +21,7 @@ import 'package:lan_quiz/stats_service.dart';
 import 'package:web_socket_channel/io.dart';
 import '../client.dart';
 import 'dart:convert';
-
+import 'package:flutter_background/flutter_background.dart';
 import '../packets/update_player_list_packet.dart';
 
 
@@ -32,8 +34,32 @@ class ClientGameState extends BaseGameState {
   late LeaderboardWidget leaderboard;
   bool isInkBlotted = false;
   Set<String> playersWhoAnswered = {};
+  final _errorEventController = StreamController<String>.broadcast();
+  Stream<String> get errorStream => _errorEventController.stream;
 
   Future<void> joinGame(String ip) async {
+
+    const androidConfig = FlutterBackgroundAndroidConfig(
+      notificationTitle: "LAN Quiz",
+      notificationText: "Connected to Game round",
+      notificationImportance: AndroidNotificationImportance.normal,
+      notificationIcon: AndroidResource(name: 'background_icon', defType: 'drawable'),
+    );
+
+    Future<bool> backgroundPermissionAndroid() async {
+      if(Platform.isAndroid){
+        return await FlutterBackground.initialize(androidConfig: androidConfig);
+      }
+      return false;
+    }
+
+    bool hasPermissions = await backgroundPermissionAndroid();
+
+    if(hasPermissions){
+      await FlutterBackground.enableBackgroundExecution();
+    }
+
+
     try {
       await _streamSubscription?.cancel();
       _streamSubscription = null;
@@ -69,6 +95,8 @@ class ClientGameState extends BaseGameState {
      isPaused = false;
      uiState = UiState.home;
      quizPhase = QuizPhase.answering;
+     stopDiscovery();
+     discoveredServices.clear();
      notifyListeners();
   }
 
@@ -118,6 +146,8 @@ class ClientGameState extends BaseGameState {
           isPaused = true;
           notifyListeners();
           break;
+        case PacketType.JOIN_REJECTED:
+          handleJoinRejected(packet);
         default:
           break;
       }
@@ -129,6 +159,14 @@ class ClientGameState extends BaseGameState {
   void sendRegisterPacket() {
     final registerPacket = RegisterPacket(name: myName, id: myId);
     sendToServer(jsonEncode(registerPacket.toJson()));
+  }
+
+  void handleJoinRejected(Packet packet){
+    final rejectedPacket = packet as JoinRejectedPacket;
+
+    _errorEventController.add(rejectedPacket.message);
+
+    cancelJoin();
   }
 
   void handlePlayerListUpdate(Packet packet){
@@ -305,7 +343,6 @@ class ClientGameState extends BaseGameState {
   }
   */
 
-
   void stopDiscovery() {
     _discovery?.stop();
     _discovery = null;
@@ -322,6 +359,10 @@ class ClientGameState extends BaseGameState {
     // Note: No await or async, if await is used here the code will
     // be stuck here when the wrong ip address was used when joining a game
     print('canceling join');
+
+    if(Platform.isAndroid && FlutterBackground.isBackgroundExecutionEnabled){
+      FlutterBackground.disableBackgroundExecution();
+    }
     _streamSubscription?.cancel();
     _streamSubscription = null;
     channel?.sink.close();
@@ -338,9 +379,13 @@ class ClientGameState extends BaseGameState {
 
   @override
   void dispose() {
+    if(Platform.isAndroid && FlutterBackground.isBackgroundExecutionEnabled){
+      FlutterBackground.disableBackgroundExecution();
+    }
     _streamSubscription?.cancel();
     channel?.sink.close();
     _discovery?.stop();
+    _errorEventController.close();
     super.dispose();
   }
 }

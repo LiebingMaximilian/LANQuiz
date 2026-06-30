@@ -12,4 +12,5 @@ enum PacketType {
   PLAYER_ANSWERED,
   GAME_PAUSED,
   GAME_RESUMED,
+  JOIN_REJECTED,
 }

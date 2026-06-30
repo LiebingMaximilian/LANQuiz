@@ -46,57 +46,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
   @override
   void initState() {
     super.initState();
-
-    // Sort descending by score
-    if(widget.entries.isEmpty){
-      _sorted = [];
-    } else {
-      _sorted = List.of(widget.entries)
-        ..sort((a, b) => b.score.compareTo(a.score));
-    }
-
-    final int maxScore =
-        _sorted.isNotEmpty ? _sorted.first.score : 1;
-
-    _barControllers = List.generate(
-      _sorted.length,
-      (i) => AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 900),
-      ),
-    );
-
-    _barAnimations = List.generate(_sorted.length, (i) {
-      double targetHeight = 0.0;
-      if( _sorted[i].score >= 0 && maxScore > 0) {
-        targetHeight =
-        maxScore > 0 ? _sorted[i].score / maxScore : 0.0;
-      }
-      return Tween<double>(begin: 0, end: targetHeight).animate(
-
-        CurvedAnimation(
-          parent: _barControllers[i],
-          curve: Curves.easeOutCubic,
-        ),
-      );
-    });
-
-    // Stagger the bar animations
-      for (int i = 0; i < _barControllers.length; i++) {
-        Future.delayed(Duration(milliseconds: 150 * i), () {
-          if (mounted) _barControllers[i].forward();
-        });
-      }
-
-    _timerController = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: widget.timeLimit),
-    );
-
-      _timerController.forward();
-
-    _timerController.addStatusListener((status) {
-  });
+    _initAnimations();
     buttonActivated = false;
   }
 
@@ -119,6 +69,70 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget>
         return const Color(0xFFCD7F32); // Bronze
       default:
         return const Color(0xFF2F2F2F);
+    }
+  }
+
+  List<LeaderboardEntry> _getSortedEntries(List<LeaderboardEntry> entries){
+    return List.of(entries)..sort((a,b) => b.score.compareTo(a.score));
+  }
+
+  void _initAnimations(){
+    // Sort descending by score
+    if(widget.entries.isEmpty){
+      _sorted = [];
+    } else {
+      _sorted = _getSortedEntries(widget.entries);
+    }
+
+    final int maxScore =
+    _sorted.isNotEmpty ? _sorted.first.score : 1;
+    _barControllers = List.generate(
+      _sorted.length,
+          (i) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      ),
+    );
+
+    _barAnimations = List.generate(_sorted.length, (i) {
+      double targetHeight = 0.0;
+      if( _sorted[i].score >= 0 && maxScore > 0) {
+        targetHeight =
+        maxScore > 0 ? _sorted[i].score / maxScore : 0.0;
+      }
+      return Tween<double>(begin: 0, end: targetHeight).animate(
+
+        CurvedAnimation(
+          parent: _barControllers[i],
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
+
+    // Stagger the bar animations
+    for (int i = 0; i < _barControllers.length; i++) {
+      Future.delayed(Duration(milliseconds: 150 * i), () {
+        if (mounted) _barControllers[i].forward();
+      });
+    }
+
+    _timerController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: widget.timeLimit),
+    );
+
+    _timerController.forward();
+
+    _timerController.addStatusListener((status) {
+    });
+  }
+
+  @override
+  void didUpdateWidget(LeaderboardWidget oldWidget){
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.entries.length != widget.entries.length){
+      for(final c in _barControllers) c.dispose();
+      _initAnimations();
     }
   }
 
