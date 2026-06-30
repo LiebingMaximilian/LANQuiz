@@ -6,7 +6,6 @@ import 'package:lan_quiz/enums/joker_type.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/base_game_state.dart';
-import 'package:lan_quiz/host.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';

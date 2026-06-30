@@ -1,6 +1,5 @@
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
-import 'package:uuid/uuid.dart';
 
 class ShowCorrectAnswerPacket extends Packet{
   int correctAnswerIndex;
