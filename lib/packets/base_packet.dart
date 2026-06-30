@@ -1,4 +1,3 @@
-import 'package:lan_quiz/client_question.dart';
 import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/packets/game_status_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';

@@ -137,7 +137,7 @@ class UserStatistics{
     );
   }
   Map<String, dynamic> toJson(){
-    final jsonCategoryStats = categoryStats?.map((key, value) => MapEntry(key, value.toJson()),) ?? {};
+    final jsonCategoryStats = categoryStats.map((key, value) => MapEntry(key, value.toJson()),);
     return{
       'globalTotalQuestions' : globalTotalQuestions,
       'globalAnsweredQuestions' : globalAnsweredQuestions,

@@ -158,7 +158,6 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
           return data.question;
         case 1: //no questions left
           throw Exception("No Results, not enough questions left");
-          //todo get random questions after counter finished
         case 2: // invalid url
           throw Exception("Invalid Parameter");
         case 3:
@@ -170,7 +169,6 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
         case 4: // no questions available who havent been used - return random category or reset token
           if(category != null){
             globalCategory = null; //gives question for random catogory back if category runs out of questions
-            //TODO: inform user that category is empty + loading indicator
             return fetchQuestion(); 
           }
             bool rst = await resetToken(); //resets token if all questions are used up
@@ -206,7 +204,7 @@ Future<Question> fetchQuestion([int? category]) async { // fetches and returns q
         throw Exception("Unknown error, failed 3 times fetching questions");
       }
     } else {
-      throw Exception('http request failed'); //unknown error
+      throw Exception("http request failed"); //unknown error
     }
   }
 class Token{ //token class for handling tokens
@@ -228,7 +226,7 @@ Future<Token> createToken() async{ //fetching tokens
 }
 
 Future<bool> resetToken() async{
-  final response = await http.get(Uri.parse('https://opentdb.com/api_token.php?command=reset&token=$token'));
+  final response = await http.get(Uri.parse("https://opentdb.com/api_token.php?command=reset&token=$token"));
   if(response.statusCode == 200){
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if(data['response_code'] == 0){
@@ -268,9 +266,9 @@ Future<List<TriviaCategory>> fetchCategories() async{
     List<TriviaCategory> categories = rawList
         .map((json) => TriviaCategory.fromJson(json as Map<String, dynamic>))
         .toList(); //putting categories in map for better usage
-        categories.insert(0, TriviaCategory(id: null, name: "All")); //insert all category option
+        categories.insert(0, TriviaCategory(id: null, name: 'All')); //insert all category option
     return categories;
   } else {
-    throw Exception('Failed to load categories');
+    throw Exception("Failed to load categories");
   }
 }

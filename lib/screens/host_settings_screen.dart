@@ -31,7 +31,7 @@ class _HostSettingsScreenState extends State<HostSettingsScreen> {
   final hostNameController = TextEditingController();
   @override
   Widget build(BuildContext context) {
-    final gameState = context.watch<HostGameState>();
+    //final gameState = context.watch<HostGameState>();
 
     return Scaffold(
       appBar: AppBar(

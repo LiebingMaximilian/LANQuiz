@@ -106,7 +106,7 @@ Future<dynamic> usernameInputDialog(BuildContext context, bool startup) async {
       barrierDismissible: !startup,
       builder: (context) {
         return AlertDialog(
-          title: Text('Change Username'),
+          title: Text("Change Username"),
           content: Form(
             key: localFormKey,
             child: TextFormField(
@@ -115,7 +115,7 @@ Future<dynamic> usernameInputDialog(BuildContext context, bool startup) async {
               maxLength: 15,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Username cannot be empty';
+                  return "Username cannot be empty";
                 }
                 return null;
               },
@@ -124,13 +124,13 @@ Future<dynamic> usernameInputDialog(BuildContext context, bool startup) async {
           actions: <Widget>[
             if(startup == false) 
             TextButton(
-              child: Text('CANCEL'),
+              child: Text("CANCEL"),
               onPressed: () {
                 Navigator.pop(context);
               },
             ),
              TextButton(
-              child: Text('OK'),
+              child: Text("OK"),
               onPressed: () {
                 if(localFormKey.currentState!.validate()){
                 setUsername(usernameController.text);

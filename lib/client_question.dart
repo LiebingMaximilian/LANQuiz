@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:lan_quiz/api_connector.dart';
-import 'package:lan_quiz/screens/leaderboard_screen.dart';
 
 class ClientQuestion{
   String question = "";

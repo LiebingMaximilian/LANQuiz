@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:lan_quiz/host.dart';
 import 'package:lan_quiz/player_data.dart';
-import 'package:lan_quiz/screens/global_settings_screen.dart';
 
 class PlayerManager {
   List<PlayerData> players = [];

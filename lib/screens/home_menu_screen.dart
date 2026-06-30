@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   });
 }
 
-  final _formKey = GlobalKey<FormState>();
+  //final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -201,7 +201,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                   }
                   final username = snapshot.data ?? '';
                   return Text(
-                    username.isNotEmpty ? 'Welcome back, $username' : 'Welcome, Guest',
+                    username.isNotEmpty ? "Welcome back, $username" : "Welcome, Guest",
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -355,12 +355,12 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                         ),
                         validator: (value){
                           if(value == null || value.isEmpty) {
-                            return 'Please enter an IP address';
+                            return "Please enter an IP address";
                           }
                           final ipRegex = RegExp(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$');
 
                           if(!ipRegex.hasMatch(value)){
-                            return 'Please enter a valid IP address';
+                            return "Please enter a valid IP address";
                           }
                           return null;
                         }
@@ -374,7 +374,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                 ElevatedButton.icon(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valid IP address! connecting...')),
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Valid IP address! connecting...")),
                       );
                       stopDiscovery();
                       updateUsername(gameState.myName, context);
