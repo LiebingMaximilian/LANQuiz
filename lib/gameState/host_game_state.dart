@@ -440,7 +440,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
   @override
   void dispose() {
-    if(FlutterBackground.isBackgroundExecutionEnabled){
+    if(FlutterBackground.isBackgroundExecutionEnabled && Platform.isAndroid){
       FlutterBackground.disableBackgroundExecution();
     }
     _broadcast?.stop();

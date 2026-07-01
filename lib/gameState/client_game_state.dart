@@ -240,7 +240,7 @@ class ClientGameState extends BaseGameState {
   }
 
   void useJoker(JokerType jokerType, {String targetId = ""}) {
-    if (myUsedJokers.contains(jokerType) || isWaitingForJoker || currentAnswers.length == 2 || quizPhase != QuizPhase.answering) return;
+    if (myUsedJokers.contains(jokerType) || isWaitingForJoker || quizPhase != QuizPhase.answering) return;
 
     myUsedJokers.add(jokerType);
     isWaitingForJoker = true;
