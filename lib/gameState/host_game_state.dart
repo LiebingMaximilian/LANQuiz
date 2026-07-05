@@ -30,9 +30,8 @@ import 'package:flutter_background/flutter_background.dart';
 class HostGameState extends ClientGameState with WidgetsBindingObserver { //extending client_game_state means host is client and host in one, which is what we want
   int _correctAnswerIndex = 0;
   int _answersReceivedThisRound = 0;
-  Map<String, Set<JokerType>> usedJokers = {};
   BonsoirBroadcast? _broadcast;
-  final Map<String,String> _answersThisRoundMap = {};
+  final Map<String,String> _answersThisRoundMap = {}; // key is now PlayerId
   final Set<String> doubleDownActive = {};
   final Set<String> secondChanceActive = {};
   //       targetId, attackerId
@@ -44,12 +43,11 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     await hostGame();
   }
 
-  @override
   Future<void> hostGame() async {
 
     const androidConfig = FlutterBackgroundAndroidConfig(
       notificationTitle: "LAN Quiz Server",
-      notificationText: "The Game is running in the backgroudnd...",
+      notificationText: "The Game is running in the background...",
       notificationImportance: AndroidNotificationImportance.normal,
       notificationIcon: AndroidResource(name: 'background_icon', defType: 'drawable'),
     );
@@ -154,14 +152,16 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
   void handleJokerRequest(Packet packet) {
     final request = packet as JokerRequestPacket;
-    String pName = request.playerName;
-    String pId = playerManager.players.firstWhere((p) => p.name == pName).id;
-    
-    usedJokers.putIfAbsent(pName, () => <JokerType>{});
-    if (usedJokers[pName]!.contains(request.jokerType)) return;
-    
-    usedJokers[pName]!.add(request.jokerType);
-    
+    String pId = request.playerId;
+
+    if(!playerManager.hasPlayer(pId)) return;
+    PlayerData player = playerManager.players.firstWhere((p) => p.id == pId);
+
+    if(!player.usedJokers.add(request.jokerType)){
+      return;    // add returns true/false; if false is returned joker is already used
+    }
+
+
     switch (request.jokerType) {
       case JokerType.FIFTY_FIFTY:
         List<int> wrongIndices = [];
@@ -174,7 +174,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     
         final responseFF = JokerResponsePacket(
           targetPlayerId: pId,
-          sourcePlayerName: pName,
+          sourcePlayerId: pId,
           answersToHide: wrongIndices.take(2).toList(),
           jokerType: request.jokerType,
         );
@@ -185,7 +185,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
         doubleDownActive.add(pId);
         final responseDD = JokerResponsePacket(
           targetPlayerId: pId,
-          sourcePlayerName: pName,
+          sourcePlayerId: pId,
           jokerType: JokerType.DOUBLE_DOWN,
         );
         broadcastCommand(jsonEncode(responseDD.toJson()));
@@ -195,7 +195,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
         secondChanceActive.add(pId);
         final responseSC = JokerResponsePacket(
           targetPlayerId: pId,
-          sourcePlayerName: pName,
+          sourcePlayerId: pId,
           jokerType: JokerType.SECOND_CHANCE,
         );
         broadcastCommand(jsonEncode(responseSC.toJson()));
@@ -206,8 +206,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
         // print("HOST: INK SPLASH RECEIVED, ATTACKER: $pName, TARGET: $targetId, TARGET_ID: ${request.targetId}");
         final responseIS = JokerResponsePacket(
             targetPlayerId: targetId,
-            sourcePlayerName: pName,
-            answersToHide: [],  // sending an empty list here
+            sourcePlayerId: pId,
             jokerType: JokerType.INK_SPLASH,
         );
         broadcastCommand(jsonEncode(responseIS.toJson()));
@@ -215,17 +214,16 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
       case JokerType.COPY_CAT:
         String targetId = request.targetId;
-        String targetName = playerManager.getNameById(targetId) ?? "";
 
-        if(_answersThisRoundMap.containsKey(targetName)){
-          String answerToCopy = _answersThisRoundMap[targetName]!;
-          _injectCopiedAnswer(pId, pName, answerToCopy);
+        if(_answersThisRoundMap.containsKey(targetId)){
+          String answerToCopy = _answersThisRoundMap[targetId]!;
+          _injectCopiedAnswer(pId, answerToCopy);
         }
         else{
           copyCatActive[targetId] = pId;
           final responseCC = JokerResponsePacket(
             targetPlayerId: pId,
-            sourcePlayerName: pName,
+            sourcePlayerId: pId,
             jokerType: JokerType.COPY_CAT,
           );
           broadcastCommand(jsonEncode(responseCC.toJson()));
@@ -234,8 +232,8 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     }
   }
 
-  void _injectCopiedAnswer(String attackerId, String attackerName, String answer){
-    _answersThisRoundMap[attackerName] = answer;
+  void _injectCopiedAnswer(String attackerId, String answer){
+    _answersThisRoundMap[attackerId] = answer;
 
     bool hasDoubleDown = doubleDownActive.contains(attackerId);
     if (answer == currentAnswers[_correctAnswerIndex]) {
@@ -249,7 +247,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
     final responseCC = JokerResponsePacket(
       targetPlayerId: attackerId,
-      sourcePlayerName: attackerName,
+      sourcePlayerId: attackerId,
       jokerType: JokerType.COPY_CAT,
     );
     broadcastCommand(jsonEncode(responseCC.toJson()));
@@ -303,7 +301,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
         isFinalLeaderboard: true);
 
     broadcastCommand(jsonEncode(endPacket.toJson()));
-    usedJokers.clear();
+    // usedJokers.clear();
     
     _broadcast?.stop();
     _broadcast = null;
@@ -318,11 +316,11 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     if (mode != Mode.host) return;
 
     print("game restarting...");
-    usedJokers.clear();
+   // usedJokers.clear();
     playerManager.resetScores();
     _answersReceivedThisRound = 0;
     currentRound = 1;
-
+    playerManager.resetJokers();
     await sendQuestion();
   }
 
@@ -363,11 +361,10 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
     handlePlayerAnswered(answeredPacket);
 
-    String pName = playerManager.getNameById(pId) ?? "Unknown";
     if(!playerManager.hasPlayer(pId)){
       throw Exception("Received answer from unregistered player with id $pId");
     }
-    _answersThisRoundMap[playerManager.getNameById(pId)!] = answer;
+    _answersThisRoundMap[pId] = answer;
 
     // Second Chance Logic
     if(answer != currentAnswers[_correctAnswerIndex] && secondChanceActive.contains(pId)){
@@ -381,7 +378,6 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
       return;
     }
 
-    _answersThisRoundMap[pName] = answer;
     bool hasDoubleDown = doubleDownActive.contains(pId);
 
     if (answer == currentAnswers[_correctAnswerIndex]) {
@@ -398,10 +394,9 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     // Copy Cat waiting list check
     if (copyCatActive.containsKey(pId)){
       String attackerId = copyCatActive[pId]!;
-      String attackerName = playerManager.getNameById(attackerId) ?? "Unknown";
 
       copyCatActive.remove(pId);
-      _injectCopiedAnswer(attackerId, attackerName, answer);
+      _injectCopiedAnswer(attackerId, answer);
     }
     _checkRoundEnd();
    }

@@ -25,7 +25,7 @@ abstract class BaseGameState extends ChangeNotifier {
   UiState uiState = UiState.home;
   QuizPhase quizPhase = QuizPhase.answering;
   int correctAnswerIndex = -1;
-  Map<String,String> playerAnswersThisRound = {}; // saves player name -> Answer
+  Map<String,String> playerAnswersThisRound = {}; // saves player id -> Answer
   bool unlockAnswer = false;
   bool isPaused = false;
   List<LeaderboardEntry> leaderboardEntries = [];

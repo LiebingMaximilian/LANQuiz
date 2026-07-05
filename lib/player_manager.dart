@@ -37,8 +37,11 @@ class PlayerManager {
   }
 
   String? getNameById(String id) {
-    PlayerData? player = players.firstWhere((p) => p.id == id, orElse: () => throw Exception('Player not found'));
-    return player?.name;
+    var player = players.where((p) => p.id == id);
+    if(player.isNotEmpty) {
+      return player.first.name;
+    }
+    return null;
   }
 
   void removePlayerBySocket(WebSocket socket){
@@ -51,6 +54,12 @@ class PlayerManager {
 
   bool hasPlayer(String id) {
     return players.any((p) => p.id == id);
+  }
+
+  void resetJokers(){
+    for(var player in players){
+      player.usedJokers.clear();
+    }
   }
 
   void kick(String id) {

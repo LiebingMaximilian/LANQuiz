@@ -42,7 +42,7 @@ class _GlobalSettingsScreenState extends State<GlobalSettingsScreen>{
         centerTitle: true,
         title: const Text("Global Settings"),
       ),
-      body: Padding( //adding current Username with button change to get textfield, 
+      body: Padding( //adding current Username with button change to get text field,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

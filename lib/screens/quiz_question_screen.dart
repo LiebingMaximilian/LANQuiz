@@ -279,9 +279,9 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                 List<String> playersWhoChoseThis = [];
                                 if (isShowingResult) {
                                   gameState.playerAnswersThisRound
-                                      .forEach((name, answerText) {
+                                      .forEach((id, answerText) {
                                     if (answerText == widget.answers[index]) {
-                                      playersWhoChoseThis.add(name);
+                                      playersWhoChoseThis.add(id);
                                     }
                                   });
                                 }
@@ -322,11 +322,12 @@ class _QuizQuestionWidgetState extends State<QuizQuestionWidget>
                                           right: 0,
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
-                                            children: playersWhoChoseThis.map((name) {
+                                            children: playersWhoChoseThis.map((id) {
+                                              String name = gameState.playerManager.getNameById(id) ?? "??";
                                               String initial = name.isNotEmpty
                                                   ? name[0].toUpperCase()
                                                   : "?";
-                                              bool isMe = name == gameState.myName;
+                                              bool isMe = id == gameState.myId;
 
                                               return Container(
                                                 margin: const EdgeInsets.only(left: 4),
