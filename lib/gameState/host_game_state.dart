@@ -1,5 +1,4 @@
 import 'dart:async';
-//import 'dart:ffi';
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/cupertino.dart';
@@ -10,6 +9,7 @@ import 'package:lan_quiz/enums/ui_state.dart';
 import 'package:lan_quiz/gameState/client_game_state.dart'; // Ensure correct import matching filename
 import 'package:lan_quiz/packets/base_packet.dart';
 import 'package:lan_quiz/packets/game_status_packet.dart';
+import 'package:lan_quiz/packets/join_rejected_packet.dart';
 import 'package:lan_quiz/packets/joker_request_packet.dart';
 import 'package:lan_quiz/packets/joker_response_packet.dart';
 import 'package:lan_quiz/packets/player_answered_packet.dart';
@@ -49,7 +49,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
     const androidConfig = FlutterBackgroundAndroidConfig(
       notificationTitle: "LAN Quiz Server",
-      notificationText: "The Game is runing in the backgroudnd...",
+      notificationText: "The Game is running in the backgroudnd...",
       notificationImportance: AndroidNotificationImportance.normal,
       notificationIcon: AndroidResource(name: 'background_icon', defType: 'drawable'),
     );
@@ -77,6 +77,8 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
       },
       onClientDisconnected: (socket) {
         playerManager.removePlayerBySocket(socket);
+        leaderboardEntries = scoresToLeaderboard(playerManager.players);
+        broadcastPlayerList();
         notifyListeners();
       }
     );
@@ -339,6 +341,9 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
         await handleAnswer(packet);
       } else if (packet.type == PacketType.JOKER_REQUEST && mode == Mode.host) {
         handleJokerRequest(packet as JokerRequestPacket);
+      } else if (packet.type == PacketType.UPDATE_PLAYER_LIST && mode == Mode.host){
+        // Host is not allowed to process this packet!!!!!!!!!
+        return;
       } else {
         //go to client 
         super.processNetworkMessage(msg);
@@ -435,7 +440,7 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
 
   @override
   void dispose() {
-    if(FlutterBackground.isBackgroundExecutionEnabled){
+    if(FlutterBackground.isBackgroundExecutionEnabled && Platform.isAndroid){
       FlutterBackground.disableBackgroundExecution();
     }
     _broadcast?.stop();
@@ -446,6 +451,17 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
   void preProcessNetworkMessage(WebSocket socket, String data) {
     final packet = Packet.fromJson(jsonDecode(data));
     if (packet.type == PacketType.REGISTER) {
+
+      if(uiState != UiState.hostLobby){
+        print("Registration denied: Game already in progress");
+
+        final rejectPlayer = JoinRejectedPacket(message: "You can't join a game that has already started");
+        socket.add(jsonEncode(rejectPlayer.toJson()));
+
+        socket.close();
+        return;
+      }
+
       final registerPacket = RegisterPacket.fromJson(jsonDecode(data));
       playerManager.addPlayer(registerPacket.name, registerPacket.id, socket: socket);
       registerPlayerSocket(registerPacket.id, socket);
@@ -458,9 +474,9 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
     }
   }
 
-
   void kickPlayer(String playerId) {
     playerManager.kick(playerId);
+    leaderboardEntries = scoresToLeaderboard(playerManager.players);
     broadcastPlayerList();
     notifyListeners();
   }

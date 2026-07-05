@@ -3,7 +3,6 @@ import 'package:lan_quiz/screens/home_menu_screen.dart';
 import 'package:provider/provider.dart';
 import 'gameState/host_game_state.dart';
 
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 

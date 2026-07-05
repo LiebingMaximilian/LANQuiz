@@ -54,7 +54,7 @@ class PlayerManager {
   }
 
   void kick(String id) {
-    kickPlayer(id);
+    // do not add kickPlayer(id); !!!!!!!!!!!
     removePlayer(id);
   }
 }

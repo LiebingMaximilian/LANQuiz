@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:bonsoir/bonsoir.dart';
@@ -30,11 +31,25 @@ bool isHostButtonPressed = false;
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController ipController = TextEditingController(); // ← moved here
   bool isDiscovering = false;
+  StreamSubscription<String>? _errorSubscription;
 
   @override
   void initState() {
   super.initState();
-  
+
+  final gameState = context.read<HostGameState>();
+  _errorSubscription = gameState.errorStream.listen((errorMessage) {
+    if(mounted){
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  });
+
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     final currentUsername = await getUsername();
     if (currentUsername == null || currentUsername.isEmpty) {
@@ -53,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     ipController.dispose();
+    _errorSubscription?.cancel();
     Provider.of<HostGameState>(context, listen: false).stopDiscovery();
     super.dispose();
   }
@@ -343,7 +359,7 @@ class _HomeMenuScreenState extends State<HomeMenuScreen> {
                         controller: ipController,
                       keyboardType: (!kIsWeb && Platform.isIOS)
                       ? TextInputType.visiblePassword
-                      : const TextInputType.numberWithOptions(decimal: true), //numberkeyboard wiht . 
+                      : const TextInputType.numberWithOptions(decimal: true), //number key board wiht .
                       inputFormatters:[
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
                       ],

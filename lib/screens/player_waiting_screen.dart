@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:lan_quiz/gameState/host_game_state.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +36,7 @@ class _PlayerWaitingScreenState extends State<PlayerWaitingScreen>{
     "The first 5 seconds after an earthquake are the most dangerous because this is when the strongest tremors often occur, destabilizing buildings, bridges, and other structures, making the risk of collapse and further damage the highest.",
     "The longest time anyone has held their breath underwater is 24 minutes and 37 seconds.",
     "Lemons float on water, whereas limes sink.",
-    "The British Labour Party sings its party anthem to the tune of 'O Tannenbaum' ('O Christmas Tree')."
+    "The British Labour Party sings its party anthem to the tune of 'O Tannenbaum' ('O Christmas Tree').",
     "This App was made by Maximilian, Julian and Severin",
   ];
 
