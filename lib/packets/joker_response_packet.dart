@@ -4,14 +4,14 @@ import 'package:lan_quiz/packets/base_packet.dart';
 
 class JokerResponsePacket extends Packet{
   String? targetPlayerId;
-  String? sourcePlayerName;
+  String? sourcePlayerId;
   List<int>? answersToHide;
   JokerType jokerType;
 
   JokerResponsePacket({
     super.type = PacketType.JOKER_RESPONSE,
     this.targetPlayerId,
-    this.sourcePlayerName,
+    this.sourcePlayerId,
     this.answersToHide,
     required this.jokerType,
   });
@@ -20,7 +20,7 @@ class JokerResponsePacket extends Packet{
   Map<String,dynamic> toJson() => {
     ...super.toJson(),
     'targetPlayerId' : targetPlayerId,
-    'sourcePlayerName' : sourcePlayerName,
+    'sourcePlayerId' : sourcePlayerId,
     'answersToHide' : answersToHide,
     'jokerType' : jokerType.name,
   };
@@ -28,7 +28,7 @@ class JokerResponsePacket extends Packet{
   factory JokerResponsePacket.fromJson(Map<String,dynamic> json) =>
       JokerResponsePacket(
         targetPlayerId: json['targetPlayerId'] as String?,
-        sourcePlayerName: json['sourcePlayerName'] as String?,
+        sourcePlayerId: json['sourcePlayerId'] as String?,
         answersToHide: json['answersToHide'] != null
             ? List<int>.from(json['answersToHide'])
             : [],

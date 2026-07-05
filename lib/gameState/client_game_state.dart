@@ -30,7 +30,6 @@ class ClientGameState extends BaseGameState {
   List<BonsoirService> discoveredServices = [];
   StreamSubscription? _streamSubscription;
   IOWebSocketChannel? channel;
-  //Set<JokerType> myUsedJokers = {};
   late LeaderboardWidget leaderboard;
   bool isInkBlotted = false;
   Set<String> playersWhoAnswered = {};
@@ -183,7 +182,7 @@ class ClientGameState extends BaseGameState {
 
     // print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, GOT JOKER RESPONSE");
     // has host confirmed my request?
-    if(response.sourcePlayerName == myName){
+    if(response.sourcePlayerId == myId){
       isWaitingForJoker = false;
       notifyListeners();
     }
@@ -192,9 +191,9 @@ class ClientGameState extends BaseGameState {
     if (response.targetPlayerId == myId) {
 
       // print("CLIENT ${myName}: ATTACKER: ${response.sourcePlayerName}, TARGET: ${response.targetPlayerId}, JOKER: ${response.jokerType}, I AM THE TARGET, USE JOKER");
-      if(response.sourcePlayerName == myName) {
-        myUsedJokers.add(response.jokerType);
-      }
+      // if(response.sourcePlayerId == myId) {
+      //  myUsedJokers.add(response.jokerType);
+      // }
 
       switch(response.jokerType) {
 
@@ -245,7 +244,7 @@ class ClientGameState extends BaseGameState {
     myUsedJokers.add(jokerType);
     isWaitingForJoker = true;
     statsController.trackJokers();
-    final request = JokerRequestPacket(playerName: myName, jokerType: jokerType, targetId: targetId);
+    final request = JokerRequestPacket(playerId: myId, jokerType: jokerType, targetId: targetId);
     sendToServer(jsonEncode(request.toJson()));
   }
 

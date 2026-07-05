@@ -3,13 +3,13 @@ import 'package:lan_quiz/enums/packet_type.dart';
 import 'package:lan_quiz/packets/base_packet.dart';
 
 class JokerRequestPacket extends Packet{
-  String playerName;
+  String playerId;
   JokerType jokerType;
   String targetId;
 
   JokerRequestPacket({
     super.type = PacketType.JOKER_REQUEST,
-    required this.playerName,
+    required this.playerId,
     required this.jokerType,
     required this.targetId,
   });
@@ -17,14 +17,14 @@ class JokerRequestPacket extends Packet{
   @override
   Map<String, dynamic> toJson() => {
     ...super.toJson(),
-    'playerName' : playerName,
+    'playerId' : playerId,
     'jokerType' : jokerType.name,
     'targetId' : targetId,
   };
 
   factory JokerRequestPacket.fromJson(Map<String,dynamic> json) =>
       JokerRequestPacket(
-        playerName: json['playerName'] as String,
+        playerId: json['playerId'] as String,
         jokerType: JokerType.values.byName(json['jokerType'] as String),
         targetId: json['targetId'] as String,
       );
