@@ -170,6 +170,16 @@ class ClientGameState extends BaseGameState {
 
   void handlePlayerListUpdate(Packet packet){
     final p = packet as UpdatePlayerListPacket;
+
+    if(mode != Mode.host){
+      bool amIStillInList = p.playerList.any((playerMap) => playerMap['id'] == myId);
+      if(!amIStillInList){
+        _errorEventController.add("You got kicked by Host");
+        cancelJoin();
+        return;
+      }
+    }
+
     playerManager.players.clear();
     for(var playerMap in p.playerList){
       playerManager.addPlayer(playerMap['name']!, playerMap['id']!);
