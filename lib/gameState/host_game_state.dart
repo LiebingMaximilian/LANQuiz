@@ -470,7 +470,19 @@ class HostGameState extends ClientGameState with WidgetsBindingObserver { //exte
   }
 
   void kickPlayer(String playerId) {
-    playerManager.kick(playerId);
+
+    if(playerManager.hasPlayer(playerId)){
+      PlayerData playerToKick = playerManager.players.firstWhere((p) => p.id == playerId);
+
+      if(playerToKick.socket != null){
+        final kickPacket = JoinRejectedPacket(message: "You got kicked by Host");
+        playerToKick.socket!.add(jsonEncode(kickPacket.toJson()));
+
+        playerToKick.socket!.close();
+      }
+    }
+    playerManager.removePlayer(playerId);
+
     leaderboardEntries = scoresToLeaderboard(playerManager.players);
     broadcastPlayerList();
     notifyListeners();
