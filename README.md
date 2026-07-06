@@ -1,17 +1,33 @@
-# lan_quiz
+# LANQuiz
 
-A new Flutter project.
+Multiplayer-Quiz im lokalen Netzwerk. Ein Gerät ist **Host** und verteilt Fragen an alle Mitspieler im selben WLAN/LAN. Die Spiellogik läuft lokal auf dem Host; die Fragen kommen von der [OpenTDB-API](https://opentdb.com).
 
-## Getting Started
+*Hochschulprojekt ZAPP SoSe 2026 — Severin Köberl, Maximilian Liebing, Julian Müller.*
 
-This project is a starting point for a Flutter application.
+## Features
 
-A few resources to get you started if this is your first Flutter project:
+- Host/Client-Multiplayer über LAN (kein eigenes Backend)
+- Auto-Discovery per mDNS (`bonsoir`) oder manuelle IP-Eingabe
+- Konfigurierbar: Runden, Zeitlimit, Kategorie
+- Synchroner Timer, animiertes Leaderboard, finales Podest
+- Joker: 50:50, Double Down, Ink-Splash, CopyCat
+- Spielerverwaltung (Kick) und persistente Statistiken
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Tech-Stack
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Flutter/Dart · `provider` (State) · `shelf` + `web_socket_channel` (WebSockets, Port 8080) · `bonsoir` (mDNS) · `http` (OpenTDB) · `shared_preferences` (Persistenz).
+
+Der Host ist Server und Spieler zugleich (`HostGameState extends ClientGameState`); die Kommunikation läuft über typisierte JSON-Pakete (`PacketType`).
+
+## Erste Schritte
+
+Alle Geräte im selben WLAN/LAN; der Host benötigt Internet für die Fragen.
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Credits
+
+Fragen von der [Open Trivia Database](https://opentdb.com) (CC BY-SA 4.0).
